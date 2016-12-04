@@ -25,18 +25,16 @@ What names and terminology work best for these concepts and why? How is this
 idea best presented? As a continuation of existing Bundler patterns, or as a
 wholly new one?
 
-Would the acceptance of this proposal mean the Bundler guides must be
-re-organized or altered? Does it change how Bundler is taught to new users
-at any level?
-
-How should this feature be introduced and taught to existing Bundler
-users?
+Would the acceptance of this proposal mean the Bundler documentation will need
+to be re-organized or altered? Does it change how new users are taught to
+manage dependencies? How should this change be introduced and taught to
+existing users?
 
 # Drawbacks
 
-Why should we *not* do this? Please consider the impact on teaching Bundler,
-on the integration of this feature with other existing and planned features,
-on the impact of the API churn on existing apps, etc.
+Why should we *not* do this? Please consider the impact on existing users, on
+the documentation, on the integration of this feature with other existing and
+planned features, on the impact on existing apps, etc.
 
 There are tradeoffs to choosing any path, please attempt to identify them here.
 
