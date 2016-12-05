@@ -50,7 +50,7 @@ In short, any major feature needs an RFC that has been merged into this RFC
 repo as a markdown file. At that point the RFC is 'active' and may be
 implemented with the goal of eventual inclusion into Bundler and/or RubyGems.
 
-* Fork [the RFC repo](http://github.com/bundler/rfcs) (that's this one!)
+* Fork [the RFC repo](https://github.com/bundler/rfcs) (that's this one!)
 * Copy `0000-template.md` to `text/0000-my-feature.md` (Where 'my-feature' is
   descriptive—don't assign an RFC number yet.)
 * Fill in the RFC. Put care into the details: RFCs should include convincing
@@ -61,10 +61,10 @@ implemented with the goal of eventual inclusion into Bundler and/or RubyGems.
   response.
 * Build consensus and integrate feedback. RFCs that have broad support are much
   more likely to make progress than those that don't receive any comments.
-* RFCs rarely go through this process unchanged, especially as alternatives and 
-  drawbacks are shown. You can make edits, big and small, to the RFC to clarify 
-  or change the design, but make changes as new commits to the PR, and leave a 
-  comment on the PR explaining your changes. Specifically, do not squash or 
+* RFCs rarely go through this process unchanged, especially as alternatives and
+  drawbacks are shown. You can make edits, big and small, to the RFC to clarify
+  or change the design, but make changes as new commits to the PR, and leave a
+  comment on the PR explaining your changes. Specifically, do not squash or
   rebase commits after they are visible on the PR.
 * RFCs that are candidates for inclusion will enter a "final comment period"
   lasting 7 days. The beginning of this period will be signaled with a comment
@@ -83,14 +83,14 @@ implemented with the goal of eventual inclusion into Bundler and/or RubyGems.
 ## The RFC life-cycle
 
 Once an RFC becomes active then authors may implement it and submit the feature
-as a pull request to the Rust repo. Being 'active' is not a rubber stamp, and
+as a pull request to the Bundler repo. Being 'active' is not a rubber stamp, and
 in particular still does not mean the feature will ultimately be merged; it
 does mean that in principle all the major stakeholders have agreed to the
 feature and are amenable to merging it.
 
 Furthermore, the fact that a given RFC has been accepted and is 'active'
 implies nothing about what priority is assigned to its implementation, nor does
-it imply anything about whether a Rust developer has been assigned the task of
+it imply anything about whether a Bundler developer has been assigned the task of
 implementing the feature. While it is not necessary that the author of the RFC
 also write the implementation, it is by far the most effective way to see an
 RFC through to completion: authors should not expect that other project
