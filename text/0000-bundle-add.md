@@ -1,0 +1,132 @@
+- Start Date: 2016-12-04
+- RFC PR: (leave this empty)
+- Bundler Issue: (leave this empty)
+
+# Summary
+
+Add a new `bundle add GEM` feature. The `bundle add GEM` command will add the gem to the gemfile (if valid) and run bundle install in one step. (Refer: [#4901](https://github.com/bundler/bundler/issues/4901)).
+
+The purpose of this RFC is to get feedback on use cases, cli format/syntax, and feature options.
+
+# Motivation
+
+The main use case is to deploy scripts and/or improve user productivity by adding a gem to Gemfile and bundle install in one step.
+
+The question is how far to extend this feature, is there a need to support all gem options like version, source, and group. And whether or not it should support multiple gems with their respective options.
+
+This command overlaps in function with the current `bundle inject GEM` command.
+
+# Detailed design
+
+The usage of the feature can be grouped into 4 categories:
+
+## 1. add a single gem
+#### Proposed command
+```ruby
+bundle add "GEM"
+
+#examples
+bundle add "rails"
+```
+#### Description
+This is the base use case. The following steps will occur when the command is executed:
+1. It will load the current Gemfile and resolve the new GEM with it.
+2. If it fails to resolve correctly or is an invalid GEM, it will error out.
+3. If it resolves successfully, it will install the latest version of the GEM.
+4. It will add the GEM to the Gemfile with a comment and place a conservative version update requirement e.g.
+```ruby
+  # Gemfile
+  # Added at 2016-12-07 00:21:12 -0800 by username:
+  gem "GEM", "~> 1.0.0"
+```
+
+## 2. add a single gem with options
+#### Proposed command
+```ruby
+# First priority
+bundle add "GEM" [--version VERSION]
+
+# Possible full implementation
+bundle add "GEM" [--version VERSION] [--source SOURCE] [--group GROUP]
+
+#examples
+bundle add "rails" --version "~> 5.0.0"
+bundle add "rails" --version ">= 5.0, < 5.1"
+bundle add "rails" --version "~> 5.0.0" --group "development, test"
+bundle add "rails" --version "~> 5.0.0" --source "https://gems.example.com" --group "development"
+```
+#### Description
+This extends the base case allowing a user to specify optional version, source, and group.
+
+The following steps will occur when the command is executed:
+1. It will load the current Gemfile and resolve the new GEM with it.
+2. If it fails to resolve correctly or is an invalid GEM/options, it will error out.
+3. If it resolves successfully, it will install the specified or latest version of the GEM.
+4. It will add the GEM to the Gemfile with a comment and the specified options. If the version is ">=0", then it will substitute it with a conservative version update requirement.
+```ruby
+  # Gemfile
+  # Added at 2016-12-07 00:21:12 -0800 by username:
+  gem "GEM" --version "~> 5.0.0"
+  gem "GEM" --version ">= 5.0", "< 5.1"
+  gem "GEM" --version "~> 5.0.0", group: ["development", "test"]
+  gem "GEM" --version "~> 5.0.0", source: "https://gems.example.com", group: "development"
+```
+## 3. add multiple gems
+#### Proposed command
+```ruby
+bundle add "GEM1", "GEM2", "GEM3"
+
+#examples
+bundle add "rails", "devise", "simple_form"
+```
+#### Description
+This extends the base case allowing multiple gems to be added.
+The following steps will occur when the command is executed:
+1. It will load the current Gemfile and resolve the new GEM's with it.
+2. If it fails to resolve correctly or there are invalid GEM's, it will error out.
+3. If it resolves successfully, it will install the latest version of each GEM's.
+4. It will add the GEM's to the Gemfile and place a conservative version update requirement e.g.
+```ruby
+  # Gemfile
+  # Added at 2016-12-07 00:21:12 -0800 by username:
+  gem "GEM1", "~> 1.0.0"
+  gem "GEM2", "~> 1.0.0"
+  gem "GEM3", "~> 1.0.0"
+```
+
+## 4. add multiple gems with options
+#### Proposed command
+```ruby
+# TBD
+bundle add "MULTIPLE_GEMS + OPTIONS ???"
+```
+#### Description
+This case presents complexities in maintaining bundlers cli consistency while keeping a level of simplicity in command use with flexibility.
+
+I personally don't see a strong case for this and think if a user has to add many gems with so many options, it will be easier to either edit the Gemfile or doing it as single gem additions (slower since bundle install runs each time).
+
+# How We Teach This
+
+This will require an addition to the documentation. To bring awareness and train users, I can think of normal blog articles, and current bundler press/social media channels.
+
+# Drawbacks
+
+This will overlap functionality with the `bundle inject` command but it's more descriptive as it fits a users mental model better (add something vs inject something).
+
+# Alternatives
+
+*(What other designs have been considered? What is the impact of not doing this?)*
+
+# Unresolved questions
+
+1. Of the 4 categories above, which ones will be most commonly used to prioritize development? The current plan is first get category 1 (single gem) and category 2 (single gem with version option only) working.
+2. For category 2 (add a single gem with options), there are other cli format's to consider. However, I think these break consistency with bundler's cli and can present some confusion to users. Some alternatives being considered are:
+```ruby
+bundle add "GEM" [VERSION] [--source SOURCE] [--group GROUP]
+bundle add "GEM" [-v VERSION] [--source SOURCE] [--group GROUP]
+
+#examples
+bundle add "rails" "~> 5.0.0" --group "production"
+bundle add "rails" -v "~> 5.0.0" --source "https://gems.example.com" --group "development"
+```
+3. Will this eventually replace `bundle inject`? If so, what will be the deprecation plan?
