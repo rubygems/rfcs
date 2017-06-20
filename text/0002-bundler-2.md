@@ -23,20 +23,20 @@ support for Ruby < 2.0, remove and deprecate existing functionality and introduc
 * Specify ruby version when using the gemspec method [#4321]
 
 ## Breaking Changes
-* remove support for version of Ruby < 2.0 [#3842]
+* remove support for versions of Ruby < 2.0 [#3842]
 * The `install` command no longer remembers the given options, ie: `bundle install --path vendor` [#3955]
 * Updating all gems in the bundle through the `bundle update` command will now require the `--all` option. [#2646]
 * `bundle update` now requires a gem name unless the `--all` option is provided.
 * `bundle install` will install gems into `.bundle/gems` by default [#3784]
 * Don't create gem home before setting it [#2884]
 * The `--path` option for `bundle install` will raise an error notifying the user to use `bundle config path <path/to/bundle>` instead.
-* `bundle` without any subcommand will print the help page instead installing gems [#3831]
+* `bundle` without any subcommand will print the help page instead of installing gems [#3831]
 * The `Gemfile` and `Gemfile.lock` will move to `gems.rb` and `gems.locked` [#3834]
 * Allow mis-matches in bundler requirements [#3871]
 * The `bundle package` command is now `bundle cache` [#4008]
-* Use 'bundle gem --exe' as primary option name, instead of '--bin' [#4261]
+* Use `bundle gem --exe` as primary option name, instead of `--bin` [#4261]
 * Print only version number in `bundler --version` [#4708]
-* Dont update git repos when --local is passed [#4535]
+* Dont update git repos when `--local` is passed [#4535]
 * Skip eval'ing the Gemfile multiple times when a lockfile is present [#4952]
 
 ## Deprecated
