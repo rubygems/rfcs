@@ -1,7 +1,7 @@
 # Bundler 2 RFC
 
 This document outlines the changes proposed for the Bundler v2 release. The main goal of this release will be to remove
-support for Ruby > 2.0, remove and deprecate existing functionality and introduce any changes to existing behaviour.
+support for Ruby < 2.0, remove and deprecate existing functionality and introduce any changes to existing behaviour.
 
 ## Removed Functionality
 * The `bundle viz` and `bundle show` commands. The `viz` command will be moved to a Gem/Bundler Plugin and `show` will be removed in favour of `bundle info` and `bundle list`
@@ -23,7 +23,7 @@ support for Ruby > 2.0, remove and deprecate existing functionality and introduc
 * Specify ruby version when using the gemspec method [#4321]
 
 ## Breaking Changes
-* remove support for version of Ruby > 2.0 [#3842]
+* remove support for version of Ruby < 2.0 [#3842]
 * The `install` command no longer remembers the given options, ie: `bundle install --path vendor` [#3955]
 * Updating all gems in the bundle through the `bundle update` command will now require the `--all` option. [#2646]
 * `bundle update` now requires a gem name unless the `--all` option is provided.
