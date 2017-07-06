@@ -1,6 +1,6 @@
 - Start Date: 2016-12-04
-- RFC PR: (leave this empty)
-- Bundler Issue: (leave this empty)
+- RFC PR: https://github.com/bundler/rfcs/pull/4
+- Bundler Issue: https://github.com/bundler/bundler/pull/5486
 
 # Summary
 
