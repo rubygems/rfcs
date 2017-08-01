@@ -18,7 +18,6 @@ support for Ruby < 2.0, remove and deprecate existing functionality and introduc
 * Add `--cache` option to `bundle install` [#3555]
 * Summarize the number of using gems [#3872]
 * cache downloaded gems across applications [#3983, #5782]
-* Infer the version of ruby from `.ruby-version` [#4036]
 * Add `--shebang` option to `bundle binstubs` [#4070]
 * Specify ruby version when using the gemspec method [#4321]
 
