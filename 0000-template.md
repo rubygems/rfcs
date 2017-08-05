@@ -1,4 +1,4 @@
-- Feature Name: (fill me in with a unique ident, my_awesome_feature)
+- Feature Name: (fill me in with a unique ident, my\_awesome\_feature)
 - Start Date: (fill me in with today's date, YYYY-MM-DD)
 - RFC PR: (leave this empty)
 - Bundler Issue: (leave this empty)
@@ -19,7 +19,7 @@ Explain the proposal as if it was already implemented and released, and you were
 - Explaining the feature largely in terms of examples.
 - Explaining how users should *think* about the feature, and how it should impact the way they use Bundler. It should explain the impact as concretely as possible.
 - If applicable, provide sample error messages, deprecation warnings, or migration guidance.
-- If applicable, describe the differences between teaching this to existing user and new users.
+- If applicable, describe the differences between teaching this to existing users and new users.
 
 For implementation-oriented RFCs, this section should focus on how contributors should think about the change, and give examples of its concrete impact. For policy RFCs, this section should provide an example-driven introduction to the policy, and explain its impact in concrete terms.
 
@@ -49,4 +49,4 @@ There are tradeoffs to choosing any path, please attempt to identify them here.
 
 - What parts of the design do you expect to resolve through the RFC process before this gets merged?
 - What parts of the design do you expect to resolve through the implementation of this feature before it is on by default?
-- What related issues do you consider out of scope for this RFC tha could be addressed in the future independently of the solution that comes out of this RFC?
+- What related issues do you consider out of scope for this RFC that could be addressed in the future independently of the solution that comes out of this RFC?
