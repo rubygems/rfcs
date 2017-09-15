@@ -33,7 +33,5 @@ support for Ruby < 2.3 (See #5789), remove and deprecate existing functionality 
 * The `bundle package` command is now `bundle cache` [#4008]
 * Print only version number in `bundler --version` [#4708]
 * Dont update git repos when `--local` is passed [#4535]
-
-## Deprecated
-This is functionality that in Bundler that will be deprecated in Bundler 2 and removed in v3
-* Gemfile and Gemfile.lock
+* `bundle init` generates a new `gems.rb` [#5704]
+* Prefer gems.rb over Gemfile [#5719]
