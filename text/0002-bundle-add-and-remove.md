@@ -100,7 +100,7 @@ It appends gems to the end of the group block if the group already exists. It al
 #### Proposed command
 
 ```shell
-bundle add sinatra:2.0 minitest:~>5.11
+bundle add 'sinatra:2.0' 'minitest:~>5.11'
 ```
 
 ### Description
@@ -181,7 +181,6 @@ end
 
 ```shell
 bundle remove minitest minitest-reporters
-bundle rm minitest minitest-reporters
 ```
 
 ```ruby
@@ -232,7 +231,7 @@ bundle add minitest sinatra
 Prints out and exits with error status code:
 
 ```shell
-Gem "minitest" already present in the Gemfile. Aborting.
+Gem "minitest" already present in the Gemfile. Skipping.
 ```
 
 ### 7.2. removing gem when it's not present
@@ -243,13 +242,13 @@ source "https://rubygems.org"
 ```
 
 ```
-bundle rm minitest sinatra
+bundle remove minitest sinatra
 ```
 
 Prints out and exits with error status code:
 
 ```
-Gem "minitest" couldn't be found in the Gemfile. Aborting.
+Gem "minitest" couldn't be found in the Gemfile. Skipping.
 ```
 
 
