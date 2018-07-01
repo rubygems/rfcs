@@ -45,17 +45,21 @@ This change increases the possible number of Bundler versions in the wild, so it
 
 Adding a stable channel means supporting one older version of Bundler for longer than our current support plans, which is likely small but still some more additional work.
 
-# Rationale and Alternatives
+# Rationale
 
-The Bundler team deals with the tension between stability and change on a daily basis. With the tens of thousands of users that Bundler has, it feels impossible to satisfy everyone with every release.
+The Bundler team deals with the tension between stability and change on a daily basis. With the tens or hundreds of thousands of users that Bundler has, it feels impossible to satisfy everyone with every release.
 
 Release channels tries to make it possible to satisfy everyone, by dividing users into groups based on risk tolerance, and deliberately aiming for that level of risk. Adding stable releases might make it possible to support default releases for less time overall, to try to balance out the overall support load.
-
-Other possible solutions to this class of problem include: the Unix and early Ruby strategy of alternating stable and unstable releases, declaring all releases unstable except one blessed release per year or quarter, or any other option to classify some versions as stable and some as unstable.
 
 The strategy proposed in this RFC (or something very similar) is currently in active use by the Rust language, the NPM package manager, and the Ember.js framework, among many others. It seems to strike the best balance, allowing ongoing development work while protecting production systems from changes and accidents as much as possible.
 
 If we don’t do this, we will continue to struggle with the existing problem of strongly conflicting expectations and tensions within the user base for each version of Bundler that is released.
+
+# Alternatives
+
+Instead of releasing to canary with every commit, we could release to canary on an automated cadence, like every 24 hours.
+
+Other possible solutions to this class of problem include: the Unix and early Ruby strategy of alternating stable and unstable releases, declaring all releases unstable except one blessed release per year or quarter, or any other option to classify some versions as stable and some as unstable.
 
 # Unresolved questions
 
