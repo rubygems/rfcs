@@ -60,7 +60,7 @@ The output when running `bundle install` will look like the following:
 
 ```
 Installing json 2.1.0 (forced version, conflicts with other_gem: waiting on pull request #5)
-Installing json other_gem 1.0.0
+Installing other_gem 1.0.0
 ```
 
 # Reference-level explanation (TODO)
