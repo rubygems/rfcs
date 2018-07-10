@@ -42,7 +42,7 @@ The output when running `bundle install` will look like the following:
 
 ```
 Installing json 2.1.0 (forced version, conflicts with other_gem)
-Installing json other_gem 1.0.0
+Installing other_gem 1.0.0
 ```
 
 Most of the time, this should only be a temporary fix as we expect the gem author to release a new version with updated dependency constraints.
