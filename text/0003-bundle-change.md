@@ -13,16 +13,28 @@ At an abstract level the change command is a composite of remove and add command
 
 This feature should be viewed as a quick way of editing Gemfile. It makes changing basic properties of a gem easier.
 
-Edge cases include
-- gem not in gemfile,
+## Basic Usage
 
+```bash
+$ cat gems.rb | grep "rack"
+gem "rack", :group => :dev
+
+$ bundle change rack --group=prod
+$ cat gems.rb | grep "rack"
+gem "rack", :group => :prod
+
+```
+
+## Edge cases
+
+Edge cases include:
+
+- gem not in gemfile,
 `gem could not be found in the Gemfile.`
 - supplying an invalid option
 - no options supplied
-
 `Please supply at least one option to change.`
 - handling an unsupported gem property
-
 `option is not yet supported.`
 
 # Reference-level explanation
