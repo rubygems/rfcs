@@ -5,7 +5,7 @@
 
 # Summary
 
-Bundler expresses gem installation issues as they are presented from the gems themselves. Gems, however, often integrate with system level dependencies. When these fail, they give GCC dumps that are indecipherable to even some of the most experienced developers and absolute gibberish to new developers. This RFC intends to address this issue and take an opportunity to better educate Ruby developers while enabling them to work more productively.
+Bundler expresses gem installation issues as they are presented from the gems themselves. Gems, however, often integrate with system-level dependencies. When these fail, they give GCC dumps that are indecipherable to even some of the most experienced developers and absolute gibberish to new developers. This RFC intends to address this issue and take an opportunity to better educate Ruby developers while enabling them to work more productively.
 
 # Motivation
 
@@ -33,7 +33,7 @@ In the case we do match, 2 things happen:
 
 This will provide the end user with a quick overview of what broke, expand why it broke, and tell them how to fix it. It will also include a file path to the full output in the case that is needed.
 
-For reference, this is what the plugin did to the above Rmagick error, and what I intend to implement in Bundler:
+For reference, this is what the plugin did to the above RMagick error, and what I intend to implement in Bundler:
 
 ![A much better error for rmagick](https://user-images.githubusercontent.com/3074765/55492685-9e2bb300-5605-11e9-9e67-bb555cb2537c.png)
 
@@ -61,7 +61,7 @@ def troubleshoot(spec_install)
   return nil unless File.exist?(path)
 
   # If we have a handler, then load it
-  # Each handler may contain multiple matchable errors, iterate and matc
+  # Each handler may contain multiple matchable errors, iterate and match
   # Each matchable error is based on the gem version and a pattern to match
   # If we match the gem version and the pattern is found in the original error message, then we extract out the build error and replace it. 
   troubleshooted = false
