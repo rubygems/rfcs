@@ -2,8 +2,6 @@
 
 - Feature Name: bundler\_rubygems\_merger
 - Start Date: 2019-04-23
-- RFC PR: (leave this empty)
-- Bundler Issue: (leave this empty)
 
 ## Summary
 
@@ -53,23 +51,32 @@ Implementing the merger will likely require multiple phases. The organizational 
 
 ### Phase 1, organization merger (April 2019–May 2019)
 - Move GitHub repos from the `bundler/` org to the `rubygems/` org
+  - For example, `bundler/bundler` will become `rubygems/bundler`, etc
+  - Open Bundler PRs can be migrated with help from [this script](https://gist.github.com/segiddins/7a846516bd15f6655120db5f91e11e42)
 - Add all members of the Bundler maintainers team to the existing RubyGems maintainers team to create a new combined maintainers team
+  - Bundler committers and RubyGems committers will not be combined at this time
 - Combine maintainer Slack workspaces and Slack channels
 - Combine security@, team@, and other emails
-- Combine READMEs, issue reporting guides, and other in-repo docs
-- Update documentation and website links to issues, pull requests, troubleshooting, developer docs, etc
+- Start to update documentation and website links to issues, pull requests, troubleshooting, developer docs, etc
 
 ### Phase 2, research for codebase merger (June 2019–??? 2019)
 - Research and test a merge plan that replaces the Bundler submodule in RubyGems with the entire git history and all commits from the Bundler git repo
 - Create a CI task that runs run all of the RubyGems and Bundler tests together, covering the current RubyGems and Bundler build matrix (we can delete SO MANY MATRIX ENTRIES 🤩)
 - Update the Bundler release scripts and automation to release out of the RubyGems repo, and test it
 
-### Phase 3, codebase merger (??? 2019–??? 2020)
-- Use the plan from Phase 2 to merge the Bundler repo into the RubyGems repo in place of the submodule. It's ok if this needs a force push, but we want to avoid more than one force push.
+### Phase 3, codebase merger (est. 2019)
+- Use the plan from Phase 2 to merge the Bundler repo into the RubyGems repo in place of the submodule
+  - We plan to use https://github.com/jeremysears/scripts/blob/master/bin/git-submodule-rewrite
+  - It's ok if this needs a force push, but we want to avoid more than one force push
 - Ensure that CI continues to pass with Bundler development moved into the RubyGems repo
 - Use GitHub's "Move Issue" beta feature to move active issues from the Bundler repo over to the RubyGems repo
+- Combine READMEs, issue reporting guides, and other in-repo docs
 - Update the `rubygems/bundler` readme and "new issue" message to point to `rubygems/rubygems` for everything except bug fixes for old Bundler versions
-- Write and test a release script that automatically releases both RubyGems and Bundler together with one version number, one changelog, one tag, and one stable branch, as an artifact that can be installed via `gem install --system`
+
+### Phase 4, release merger (est. 2020)
+- Combine version numbers, git tags, and changelogs
+- Support releasing RubyGems and Bundler as a single unit that can be installed via `gem install --system`
+- Update RubyGems' automated releases to ship this single unit
 - Remove the separate Bundler release automation
 - Finally start easily sharing code between RubyGems and Bundler 😅
 
