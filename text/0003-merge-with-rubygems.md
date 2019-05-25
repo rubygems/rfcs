@@ -21,7 +21,7 @@ Combining some things will be easy, although combining everything will take some
 
 ## Guide-level explanation
 
-** Before the code-level merge:**
+**Before the code-level merge:**
 
 Bundler 3 is a stepping stone on the way to combining Bundler and RubyGems. You can install it by running `gem install bundler`. You will notice that there are some changes to how the `bundle` command works.
 
