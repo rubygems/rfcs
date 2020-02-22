@@ -107,7 +107,7 @@ Right now, there is a very similar "print a message" gem attribute by way of `po
 
 I do not believe that displaying a single message indicating gems which need funding reaches this level of annoyance. Therefore, I do not expect `ignore_messages` to have an impact on `bundle fund`, or the `X gems are looking for funding` message printout, nor should an opt-out flag or configuration should be considered at this time.
 
-`bundle init` should also not add a placeholder for `funding_uri`.
+`bundle gem` should also not add a placeholder for `funding_uri`.
 
 The specification of a group when installing or updating (eg. `bundle update --group test`) should only show funding information for that group.
 
