@@ -15,7 +15,7 @@ Option of adding and removing owners through the web UI would facilitate frictio
 
 In the current ownership flow, a gem owner can add a new owner without any confirmation from the user being added as an owner. To avoid this spamming, we will add a requirement of confirmation from the user being added.
 
-New ownership transfer flow will make the process more transparent for audits. Gem owners who are looking for new maintainers/owners would be able to open `ownership requests` and let other interested users fill it to show their interest. New searchable view of ownership transfers will make it easier for the users to find the gems which need maintainers.
+New ownership transfer flow will make the process more transparent for audits. Gem owners who are looking for new maintainers/owners would be able to open `ownership requests` and let other interested users fill it to show their interest. New searchable view of `ownership requests` will make it easier for the users to find the gems which need maintainers.
 
 # Guide-level explanation
 
@@ -80,7 +80,7 @@ Table Name: **ownership_requests** [new]
 |updated_at |datetime|timestamp|
 
 Adoptions table will be for storing if the gem is `looking for maintainers`. A new record is created when an existing owner marks the gem as looking for maintainers.
-When an `ownership application` is accepted by the owner `ownership request` record of the gem will be deleted.
+When an `ownership application` is accepted by the owner `ownership request` record of the gem will be deleted along with other `pending` (state: 0) `ownership request (s)` will be deleted.
 
 Table Name: **ownership_application** [new]
 
@@ -88,7 +88,7 @@ Table Name: **ownership_application** [new]
 |:-----------:|:----:|:-------:|
 |rubygem_id |integer|fk to rubygems|
 |user_id    |integer|fk to users|
-|note       |string |a message from existing owner|
+|note       |string |a message for gem owner from user who created the application|
 |status     |integer|opened: 0, approved: 1, closed: 2|
 |approver_id|integer|user_id of owner who approved the request|
 |created_at |datetime|timestamp|
