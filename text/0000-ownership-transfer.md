@@ -20,9 +20,10 @@ New ownership transfer flow will make the process more transparent for audits. G
 # Guide-level explanation
 
 ### Change in the ownership flow
-When a new owner is added to a gem, two types of notifications will be sent via email.
-1. A notification to all the existing gem owners about addition of new owner.
-2. A notification to the new user to confirm if he/she wants to be added as a gem owner. The new user will have to click on the link sent via email to confirm within 48 hours.
+When a new owner is added to a gem, following types of notifications will be sent via email.
+1. A notification to the new user to confirm if he/she wants to be added as a gem owner. The new user will have to click on the link sent via email to confirm within 48 hours.
+2. A notification to all the existing gem owners about addition of new owner after the confirmation from the new user.
+3. A notification to the gem owner who is removed using `gem owner -r`.
 
 This will require modifications in the `POST - /api/v1/gems/[GEM NAME]/owners` endpoint.
 
@@ -104,6 +105,7 @@ View additions/modifications are as follows:
 - Add a filter to search gems which are `looking for maintainers`. This includes both of the above cases.
 - Add a button to apply for adoption in the gem show page.
 - Add view to list all adoption requests and allow the owner to accept / decline the requests.
+- Add a label to gem show page for gems with `ownership requests`.
 
 ## Drawbacks
 1. An extra step will be added to existing simple process of adding a gem owner. With this new ownership flow, the user being added as an owner will have to accept the confirmation sent via email.
