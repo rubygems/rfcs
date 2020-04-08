@@ -104,7 +104,7 @@ When `ownership application` is rejected by any existing gem owner, his/her user
 View additions/modifications are as follows:
 - Add a filter to search gems which are `looking for maintainers`. This includes both of the above cases.
 - Add a button to apply for adoption in the gem show page.
-- Add view to list all adoption requests and allow the owner to accept / decline the requests.
+- Add view to list all ownership applications and allow the owner to accept / decline the applications.
 - Add a label to gem show page for gems with `ownership requests`.
 
 ## Drawbacks
@@ -115,6 +115,6 @@ This step is necessary to avoid spamming by the users. A user may create a gem a
 This drawback has to be addressed via necessary code audits during version updates.
  Probably solutions to this issue may be:
     
-    a. We can yank all the previous versions of the gem and give an option to the gem owners to keep the gem name locked for a few days before approving the `adoption request`. Gem install will fail for the users as the versions are yanked.
+    a. We can yank all the previous versions of the gem and give an option to the gem owners to keep the gem name locked for a few days before approving the `ownership application`. Gem install will fail for the users as the versions are yanked.
     
     b. A trusted pool of users from the community can be asked for a review of ownership transfer and gem updates after the ownership transfer. The transfer is approved only after *x* users have approved. This can be done in the period when gem name is locked.
