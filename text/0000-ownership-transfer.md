@@ -40,11 +40,11 @@ E.g. Alice owns a gem called foobar. If she is no longer interested in maintaini
 
 #### Case 1: A gem has less than 100_000 downloads and older than 12 months rubygems.updated_at time
 
-Any user can make an `adoption request` for the gem. The existing owner will be notified by email.
-When any of the existing gem owners accepts the `adoption request`, the requester will be added as an owner to the gem and will be notified via an email.
-If the gem owner declines the `adoption request`, the requester will be notified via an email.
+Any user can make an `ownership application` for the gem. The existing owner will be notified by email.
+When any of the existing gem owners accepts the `ownership application`, the requester will be added as an owner to the gem and will be notified via an email.
+If the gem owner declines the `ownership application`, the requester will be notified via an email.
 
-E.g. When Alice who owns a gem called foobar with 500 downloads which was last updated at 2019-01-01 (today: 2020-03-19), any user of rubygems.org will be able to make an `adoption request` by filling a form. Bob, who is interested in maintaining the gem will fill the form and Alice will be notified. Alice can then accept or decline the request.
+E.g. When Alice who owns a gem called foobar with 500 downloads which was last updated at 2019-01-01 (today: 2020-03-19), any user of rubygems.org will be able to make an `ownership application` by filling a form. Bob, who is interested in maintaining the gem will fill the form and Alice will be notified. Alice can then accept or decline the request.
 
 Here a case can occur where existing owner may not reply to the email notification. This scenario has to be further discussed and will be a separate project.
 
