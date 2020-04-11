@@ -89,14 +89,19 @@ Table Name: **ownerships** [existing]
 
 |Column Name|Type|Details|
 |:-----------:|:----:|:-------:|
-|state |boolean|pending/confirmed|
+|confirmed |boolean|true if new owner has confirmed|
 |token_expires_at|datetime|confirmation token expiry date|
+|push_notifier|boolean|existing notifier column will be renamed|
+|owner_notifier|boolean|notifier for add/remove gem owner|
 
 Above changes will be required to implement notification events with confirmation to add new owner. Existing column of `token` will be used to store the generated confirmation token and `token_expires_at` to store the expiry.
 If the owner clicks on confirmation link and `token_expires_at > Time.zone.now`, state will change to confirmed.
 The link will have to be recreated if it is expired.
 
-`enum status: { pending: 0, confirmed: 1 }` will be added with default scope to show only confirmed gem owners. 
+Default scope will be added to show only confirmed gem owners.
+
+`push_notifier` column will be used to store email preference for gem push
+`owner_notifier` column will be used to store email preference for owner addition or remove. 
 
 Table Name: **ownership_requests** [new]
 
@@ -136,6 +141,7 @@ View additions/modifications are as follows:
 - Add a button to apply for adoption in the gem show page.
 - Add view to list all ownership applications and allow the owner to accept / decline the applications.
 - Add a label to gem show page for gems with `ownership requests`.
+- Add new preferences to notifier view.
 
 ## Drawbacks
 1. An extra step will be added to existing simple process of adding a gem owner. With this new ownership flow, the user being added as an owner will have to accept the confirmation sent via email.
