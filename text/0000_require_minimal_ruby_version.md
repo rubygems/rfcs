@@ -15,7 +15,7 @@ This means that a Gemfile/gemspec must know what is the maximum version of a gem
 
 It takes about one minute for the gem author to add the line. When the author doesn't, everyone that uses the gem, directly or indirectly, may have to figure out the maximum version and specify it in their own gemfiles.
 
-Note that there is currently no good way to correct this mistake. Once it is done, the only option [is to yank the gem](https://github.com/rubygems/rubygems/issues/1506#issuecomment-188472423) which is typically not what one wants to do.
+Note that there is currently no good way to correct a forgotten `required_ruby_version`. Once the gem is published, the only option [is to yank the gem](https://github.com/rubygems/rubygems/issues/1506#issuecomment-188472423) which is typically not what one wants to do.
 
 `required_ruby_version` is currently in the "Optional" section of [the spec](https://guides.rubygems.org/specification-reference/). It's not even in the "Recommended" section!
 
@@ -33,6 +33,6 @@ Building a gem that does not specify it would fail, same as the other required f
 
 I can not think of a single valid reason not to specify a required ruby version.
 
-Gems that don't want to specify one can simply call `spec.required_ruby_version = '> 0'`
+Gem authors that refuse to decide on a particular version can always decide to circumvent the check by calling `spec.required_ruby_version = '> 0'`
 
-Only impact is potential confusion of user upgrading their rubygems and now their gem doesn't build, but error message should be obvious enough to fix in a few seconds.
+Potential impact is confusion/frustration of the author upgrading their rubygems and now their gem doesn't build. The error message would hopefully contain enough information for the fix to be quickly done.
