@@ -1,7 +1,7 @@
-- Feature Name: (fill me in with a unique ident, my\_awesome\_feature)
-- Start Date: (fill me in with today's date, YYYY-MM-DD)
-- RFC PR: (leave this empty)
-- Bundler Issue: (leave this empty)
+- Feature Name: mandatory_required_ruby_version
+- Start Date: 2020-04-13
+- RFC PR: 
+- Bundler Issue: 
 
 # Summary
 
