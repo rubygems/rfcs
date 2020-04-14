@@ -13,7 +13,9 @@ My current problem is that many gems are not publishing their `required_ruby_ver
 
 This means that a Gemfile/gemspec must know what is the maximum version of a gem for a given version of Ruby, instead of bundler figuring it out for us.
 
-It takes about one minute for the gem author to add the line. When the author doesn't, everyone that uses the gem, directly or indirectly, may have to figure out the maximum version and specify it in their own gemfiles.
+Assuming the author has thought of what version of Ruby is the target, it takes about one minute to add the right line. If the author has not thought of that, this important concern will now be in focus.
+
+Currently an author may not specify it at all and everyone that uses the gem, directly or indirectly, may have to figure out the maximum version and specify it in their own gemfiles.
 
 Note that there is currently no good way to correct a forgotten `required_ruby_version`. Once the gem is published, the only option [is to yank the gem](https://github.com/rubygems/rubygems/issues/1506#issuecomment-188472423) which is typically not what one wants to do.
 
