@@ -5,17 +5,18 @@
 
 # Summary
 
-gem owner -a/r command is used to add or remove owners by an email. We will add options for adding/removing gem owners via Web UI. Additionally, we will make owner add/remove events notifiable, i.e. owners can opt-in to receive email notification about ownership changes of a gem. 
+gem owner -a/r command is used to add or remove owners by an email. We will add options for adding/removing gem owners via Web UI. We will add email notification to owner add/remove events. Owners can opt-out of receive email notification about ownership changes of a gem. We will make owner additions auditable by storing when new owner was added and by whom. We will require confirmation from the user being added as an owner.
 
-We will also add a new flow for ownership transfers. Any gem owner will be able to create `ownership request`. Any user should be able to make an `ownership application` for any gem with less than 100,000 downloads and older than 12 months _updated_at_ time or gems which have associated `ownership request`. When a gem owner approves an `ownership application`, the requester should be added as an owner to the gem. These `ownership requests` will be searchable and listed on a site-wide link.
+We will also add a new flow for ownership transfers. Any gem owner will be able to create `ownership request`. Any user will be able to make an `ownership application` for any gem with less than 100,000 downloads and older than 12 months _updated_at_ time or gems which have an associated `ownership request`. When a gem owner approves an `ownership application`, the requester must be added as an owner to the gem. These `ownership requests` will be searchable and listed on a site-wide link.
 
 # Motivation
 
-Option of adding and removing owners through the web UI would facilitate friction-less transfer of gem ownership without dependency on CLI configuration on the user-side.
+Option of adding and removing owners through the web UI would facilitate friction-less transfer of gem ownership without dependency on the gem CLI installation and configuration on the user-side.
 
-As of now, a gem owner is able to add a new owner without any confirmation from the user being added as an owner. There is a possibility of gem push notification spamming, so we shall add a requirement of confirmation from the user being added as owner. We will also keep a track of existing owner who added the new owner.
+Email notification and audit trail of owner additions will improve mitigation time of unintended access grants.
+Adding a new owner without any confirmation from the user being added as an owner, potentially lead to email notification spamming. Making user being added as owner confirm the addition we will avoid sending unsolicited emails.
 
-New ownership transfer flow shall make the process more transparent for audits. Gem owners who are looking for new maintainers/owners will be able to open `ownership requests` and let interested users fill it to show their interest. New searchable view of `ownership requests` shall make it easier for the users to find the gems which need maintainers.
+New ownership transfer flow will automate process of requesting gem ownership transfers and additions. Gem owners who are looking for new maintainers/owners will be able to open `ownership requests` and let interested users apply with `ownership application` to show their interest. New searchable view of `ownership requests` will make it easier for the users to find the gems which need maintainers.
 
 # Guide-level explanation
 
@@ -33,7 +34,7 @@ This will require modifications in the `POST - /api/v1/gems/[GEM NAME]/owners` e
 
 The gem owner will create an `ownership request` using Web UI by clicking a button called `Create Ownership Request` on gems show page in the **Collaborators** section which will be added above the **Links** section.
 
-An `ownership request` is created with _user_id_ as owner who marked it.  
+An `ownership request` is created with _user_id_ as owner who marked it.
 It will be available in the search with a filter of `ownership request`.
 
 E.g. Alice owns a gem called foobar. If she is no longer interested in maintaining it, she will create an `ownership request` by clicking on `Create Ownership Request`. When Bob filters the gems using `ownership requests` filter in advanced search, foobar will be listed.
@@ -44,7 +45,7 @@ E.g. Alice owns a gem called foobar. If she is no longer interested in maintaini
 
 Any logged in user makes an `ownership application` for the gem. The existing owner will be notified by email.
 
-Here the limit on _downloads_ and _updated_at_ put to prevent spamming of active and popular gems with `ownership applications`. These limits can be relaxed in the future.
+Here the limit on _downloads_ and _updated_at_ is used to prevent spamming of popular gems with `ownership applications`. These limits may be relaxed in the future.
 
 E.g. When Alice, who owns a gem called foobar with 500 downloads which was last updated at 2019-01-01 (today: 2020-03-19), any user of rubygems.org will be able to make an `ownership application` by filling a form. Bob, who is interested in maintaining the gem will fill the form and Alice will be notified. Alice should then accept or decline the request.
 
@@ -52,30 +53,30 @@ Here a case may occur where existing owner may not reply to the email notificati
 
 #### Case 2: A gem has associated `ownership request`
 
-A gem owner will create `ownership request` as mentioned above.  
+A gem owner will create `ownership request` as mentioned above.
 Any user will be able to make an `ownership application` to the gems with associated `ownership request`.
 
-After the `ownership application` is created, any of the existing gem owners should accept the `ownership application`. If accepted, the requester will be added as an owner to the gem and will be notified via an email, a new `ownership` record will be created with corresponding _rubygem_ and new owner's _user_id_ and all the `ownership requests` associated with the gem will be deleted. The user who accepts the `ownership application` will be tracked in _added_by_ column.
-If the gem owner declines the `ownership application`, the requester will be notified via an email.
+After the `ownership application` is created, any of the existing gem owners should accept the `ownership application`. If accepted, the requester will be added as an owner to the gem and will be notified via an email, a new `ownership` record will be created for corresponding _rubygem_ and new owner's _user_id_ and the `ownership requests` associated with the gem will be deleted. The user who accepts the `ownership application` will be tracked in _added_by_ column.
+If the gem owner declines the `ownership application`, the requester will be notified via an email of the same.
 
 ### Rate Limits
 
-With these new features, many new processes are added which will need rate limits to control spamming and abuse of our email service and limit unnecessary email notifications. Following rate limits will be added to the mentioned processes: 
+With these new features, many new processes are added which will need rate limits to control spamming and abuse of our email service and limit unnecessary email notifications. Following rate limits will be added to the mentioned processes:
 1. Confirmation notification to a new user to be added as a gem owner:
-   
+
    RATE_LIMIT: 10 emails per 10 minutes.
-   
+
    KEY: `params['user_id'] in { controller: "owners", action: "confirm" }`
-   
-2. Email notifications about new `ownership applications` to the gem owner: 
+
+2. Email notifications about new `ownership applications` to the gem owner:
 
     We will send a digest email to everyday to the gem owners if there are any new ownership applications pending. This will avoid spamming the gem owners with a separate notification for all the new `ownership applications`.
-    
+
     RATE_LIMIT: 1 email per day
-    
+
     Here a single email notification will be sent only if new `ownership applications` have been created in last 24 hours by grouping by owner and by gem to each unique owner.
-    
-3. Limit on creating `ownership applications` by a user:    
+
+3. Limit on creating `ownership applications` by a user:
 
     We will limit the the number of `ownership applications` a user can create to any gem. This will prevent any user from spamming with applications.
 
@@ -97,13 +98,13 @@ Table Name: **ownerships** [existing]
 |  owner_notifier  | boolean  |    notifier for add/remove gem owner     |
 |     added_by     | integer  |      user who added this ownership       |
 
-Above changes will be required to implement notification events with confirmation to add new owner. Existing column of `token` will be used to store the generated confirmation token and `token_expires_at` to store the expiry.  
-If the owner clicks on confirmation link and `token_expires_at > Time.zone.now`, state should change to confirmed.  
+Above changes will be required to implement notification events with confirmation to add new owner. Existing column of `token` will be used to store the generated confirmation token and `token_expires_at` to store the expiry.
+If the owner clicks on confirmation link and `token_expires_at > Time.zone.now`, state should change to confirmed.
 The link will have to be recreated if it is expired.
 
 Default scope will be added to show only confirmed gem owners.
 
-`push_notifier` column will be used to store email preference for gem push  
+`push_notifier` column will be used to store email preference for gem push
 `owner_notifier` column will be used to store email preference for owner addition or remove.
 
 Table Name: **ownership_requests** [new]
@@ -117,7 +118,7 @@ Table Name: **ownership_requests** [new]
 | created_at  | datetime |                            timestamp                            |
 | updated_at  | datetime |                            timestamp                            |
 
-`ownership_requests` table will be for storing `ownership requests` created by any gem owners along with a note from the owner. A new record is created when an existing owner creates an `ownership request`.  
+`ownership_requests` table will be for storing `ownership requests` created by any gem owners along with a note from the owner. A new record is created when an existing owner creates an `ownership request`.
 When an `ownership application` is accepted by the owner `ownership request` record of the gem should be deleted along with other `pending` (state: 0) `ownership request (s)`.
 
 Table Name: **ownership_application** [new]
@@ -134,8 +135,8 @@ Table Name: **ownership_application** [new]
 
 `Ownership application` will store all the users requesting/applying to be new owners. Users logged in will be allowed to apply if a gem has an associated `ownership request` or a gem has less than 100,000 downloads and gem is not updated for more than 12 months.
 
-When user creates new `ownership application`, new record with status _open_ will be created.  
-When `ownership application` is accepted by any existing gem owner, his/her _user_id_ will be updated in _approver_id_ and _status_ will be updated to _approved_.  
+When user creates new `ownership application`, new record with status _open_ will be created.
+When `ownership application` is accepted by any existing gem owner, his/her _user_id_ will be updated in _approver_id_ and _status_ will be updated to _approved_.
 When `ownership application` is rejected by any existing gem owner, his/her _user_id_ will be updated in _approver_id_ and status will be updated to _closed_.
 
 View additions/modifications are as follows:
@@ -149,11 +150,11 @@ View additions/modifications are as follows:
 
 ## Drawbacks
 
-1. An extra step will be added to existing simple process of adding a gem owner. With this new ownership flow, the user being added as an owner will have to accept the confirmation sent via email.  
+1. An extra step will be added to existing simple process of adding a gem owner. With this new ownership flow, the user being added as an owner will have to accept the confirmation sent via email.
    This step is necessary to avoid spamming of gem push notifications by addition of random users as maintainers.
 
-2. If a user is added as a new maintainer of a gem, he/she may change the complete gem source with something entirely different.  
-   This drawback has to be addressed via necessary code audits during version updates.  
-    Probably solutions to this issue may be:  
+2. If a user is added as a new maintainer of a gem, he/she may change the complete gem source with something entirely different.
+   This drawback has to be addressed via necessary code audits during version updates.
+    Probably solutions to this issue may be:
     a. We can yank all the previous versions of the gem and give an option to the gem owners to keep the gem name locked for a few days before approving the `ownership application`. Gem install will fail for the users as the versions are yanked.
     b. A trusted pool of users from the community can be asked for a review of ownership transfer and gem updates after the ownership transfer. The transfer is approved only after _x_ users have approved. This can be done in the period when gem name is locked.
