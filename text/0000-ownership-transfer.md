@@ -32,7 +32,7 @@ This will require modifications in the `POST - /api/v1/gems/[GEM NAME]/owners` e
 
 ### Creating an ownership request:
 
-The gem owner will create an `ownership request` using Web UI by clicking a button called `Ownership Request` on the gems show page in the **Collaborators** section, which will be added above the **Links** section.
+The gem owner will create an `ownership request` using Web UI from ownerships page by navigating via **Ownerships** link in the **Links** section on the gems show page.
 
 E.g., Alice owns a gem called foobar. If she is no longer interested in maintaining it, she will create an `ownership request` by clicking on `Ownership Request`. When Bob filters the gems using `ownership requests` filter in advanced search, foobar will be listed.
 
@@ -59,6 +59,7 @@ If the gem owner declines the `ownership application`, the requester will be not
 ### Rate Limits
 
 With these new features, many new processes are added, which will need rate limits to control spamming and abuse of our email service and limit unnecessary email notifications. Following rate limits will be added to the mentioned processes:
+
 1. Confirmation notification to a new user to be added as a gem owner:
 
    RATE_LIMIT: 10 emails per 10 minutes.
@@ -67,17 +68,17 @@ With these new features, many new processes are added, which will need rate limi
 
 2. Email notifications about new `ownership applications` to the gem owner:
 
-    RATE_LIMIT: 1 email per day
+   RATE_LIMIT: 1 email per day
 
-    Here a single email notification will be sent only if new `ownership applications` have been created in the last 24 hours by grouping by the owner and by gem to each unique owner. This will send aggregated feed of applications to owners instead of multiple emails each time a user creates a new `ownership application`.
+   Here a single email notification will be sent only if new `ownership applications` have been created in the last 24 hours by grouping by the owner and by gem to each unique owner. This will send aggregated feed of applications to owners instead of multiple emails each time a user creates a new `ownership application`.
 
 3. Limit on creating `ownership applications` by a user:
 
-    We will limit the number of `ownership applications` a user can create to any gem. It will prevent any user from spamming with applications.
+   We will limit the number of `ownership applications` a user can create to any gem. It will prevent any user from spamming with applications.
 
-    RATE_LIMIT: 10 new applications per day
+   RATE_LIMIT: 10 new applications per day
 
-    KEY: `params['user_id'] in { controller: "ownership_application", action: "create" }`
+   KEY: `params['user_id'] in { controller: "ownership_application", action: "create" }`
 
 # Reference-level explanation
 
@@ -91,7 +92,8 @@ Table Name: **ownerships** [existing]
 | token_expires_at | datetime |      confirmation token expiry date      |
 |  push_notifier   | boolean  | existing notifier column will be renamed |
 |  owner_notifier  | boolean  |    notifier for add/remove gem owner     |
-|     added_by     | integer  |      user who added this ownership       |
+|  authorizer_id   | integer  |      user who added this ownership       |
+|   confirmed_at   | integer  |    timestamp of confirmation by user     |
 
 The above changes will be required to implement notification events with confirmation to add a new owner. The existing column of `token` will be used to store the generated confirmation token and `token_expires_at` to store the expiry.
 If the owner clicks on the confirmation link and `token_expires_at > Time.zone.now`, state should change to confirmed.
@@ -110,23 +112,25 @@ Table Name: **ownership_requests** [new]
 |   user_id   | integer  |                           fk to users                           |
 |    note     |  string  |                  a message from existing owner                  |
 |  email_id   |  string  | in case a gem owner doesn't want to share his personal email id |
+|   status    | boolean  |                    open: true, close: false                     |
 | created_at  | datetime |                            timestamp                            |
 | updated_at  | datetime |                            timestamp                            |
 
 `ownership_requests` table will be for storing `ownership requests` created by any gem owners along with a note from the owner. A new record is created when an existing owner creates an `ownership request`.
-When an `ownership application` is accepted by the owner `ownership request` record of the gem should be deleted along with other `pending` (state: 0) `ownership request (s)`.
+When the owner wants to stop accepting `ownership request`, he/she can mark it as closed.
 
-Table Name: **ownership_application** [new]
+Table Name: **ownership_applications** [new]
 
-| Column Name |   Type   |                            Details                            |
-| :---------: | :------: | :-----------------------------------------------------------: |
-| rubygem_id  | integer  |                        fk to rubygems                         |
-|   user_id   | integer  |                          fk to users                          |
-|    note     |  string  | a message for gem owner from user who created the application |
-|   status    | integer  |               opened: 0, approved: 1, closed: 2               |
-| approver_id | integer  |           user_id of owner who approved the request           |
-| created_at  | datetime |                           timestamp                           |
-| updated_at  | datetime |                           timestamp                           |
+|     Column Name      |   Type   |                            Details                            |
+| :------------------: | :------: | :-----------------------------------------------------------: |
+|      rubygem_id      | integer  |                        fk to rubygems                         |
+| ownership_request_id | integer  |                    fk to ownership_request                    |
+|       user_id        | integer  |                          fk to users                          |
+|         note         |  string  | a message for gem owner from user who created the application |
+|        status        | integer  |               opened: 0, approved: 1, closed: 2               |
+|     approver_id      | integer  |           user_id of owner who approved the request           |
+|      created_at      | datetime |                           timestamp                           |
+|      updated_at      | datetime |                           timestamp                           |
 
 `Ownership application` will store requests from users who are applying for ownership of a gem.
 When user creates new `ownership application`, new record with status _open_ will be created.
@@ -136,6 +140,7 @@ When `ownership application` is rejected by any existing gem owner, his/her _use
 View additions/modifications are as follows:
 
 - Add view for adding/removing an owner to the gem.
+- Add view for easy audits with details about owners like MFA, user who approved the ownership, timestamp of ownership addition.
 - Add a filter to search gems which have `ownership request`. This includes both of the above cases.
 - Add a button to apply for adoption in the gem show page.
 - Add view to list all ownership applications and allow the owner to accept / decline the applications.
@@ -149,6 +154,6 @@ View additions/modifications are as follows:
 
 2. If a user is added as a new maintainer of a gem, he/she may change the complete gem source with something entirely different.
    This drawback has to be addressed via necessary code audits during version updates.
-    Probably solutions to this issue may be:
-    a. We can yank all the previous versions of the gem and give an option to the gem owners to keep the gem name locked for a few days before approving the `ownership application`. Gem install will fail for the users as the versions are yanked.
-    b. A trusted pool of users from the community can be asked for a review of ownership transfer and gem updates after the ownership transfer. The transfer is approved after _x_ users have approved. This can be done in the period when the gem name is locked.
+   Probably solutions to this issue may be:
+   a. We can yank all the previous versions of the gem and give an option to the gem owners to keep the gem name locked for a few days before approving the `ownership application`. Gem install will fail for the users as the versions are yanked.
+   b. A trusted pool of users from the community can be asked for a review of ownership transfer and gem updates after the ownership transfer. The transfer is approved after _x_ users have approved. This can be done in the period when the gem name is locked.
