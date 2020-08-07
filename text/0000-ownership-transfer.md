@@ -53,7 +53,7 @@ Here a case may occur where the existing owner may not reply to the email notifi
 A gem owner will create `ownership call` as mentioned above.
 Any user will be able to make an `ownership request` to the gems with associated `ownership call`.
 
-After the `ownership request` is created, any of the existing gem owners should accept the `ownership request`. If accepted, the requester will be added as an owner to the gem and will be notified via an email, a new `ownership` record will be created for corresponding _rubygem_ and new owner's _user_id_ and the `ownership calls` associated with the gem will be deleted. The user who accepts the `ownership request` will be tracked in _approver_id_ column. The existing owners will get email notification about new owner being added by `ownership request` approval.
+After the `ownership request` is created, any of the existing gem owners should accept the `ownership request`. If accepted, the requester will be added as an owner to the gem and will be notified via an email, a new `ownership` record will be created for corresponding _rubygem_ and new owner's _user_id_. The user who accepts the `ownership request` will be tracked in _approver_id_ column. The existing owners will get email notification about new owner being added by `ownership request` approval.
 If the gem owner declines the `ownership request`, the requester will be notified via an email of the same.
 
 ### Rate Limits
@@ -110,8 +110,7 @@ Table Name: **ownership_calls** [new]
 | :---------: | :------: | :-------------------------------------------------------------: |
 | rubygem_id  | integer  |                         fk to rubygems                          |
 |   user_id   | integer  |                           fk to users                           |
-|    note     |  string  |                  a message from existing owner                  |
-|  email_id   |  string  | in case a gem owner doesn't want to share his personal email id |
+|    note     |   text   |                  a message from existing owner                  |
 |   status    | boolean  |                    open: true, close: false                     |
 | created_at  | datetime |                            timestamp                            |
 | updated_at  | datetime |                            timestamp                            |
@@ -124,9 +123,9 @@ Table Name: **ownership_requests** [new]
 |     Column Name      |   Type   |                            Details                            |
 | :------------------: | :------: | :-----------------------------------------------------------: |
 |      rubygem_id      | integer  |                        fk to rubygems                         |
-| ownership_call_id | integer  |                    fk to ownership_call                    |
+|   ownership_call_id  | integer  |                     fk to ownership_call                      |
 |       user_id        | integer  |                          fk to users                          |
-|         note         |  string  | a message for gem owner from user who created the request |
+|         note         |   text   |   a message for gem owner from user who created the request   |
 |        status        | integer  |               opened: 0, approved: 1, closed: 2               |
 |     approver_id      | integer  |           user_id of owner who approved the request           |
 |      created_at      | datetime |                           timestamp                           |
