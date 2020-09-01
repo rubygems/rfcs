@@ -29,13 +29,13 @@ Output:
 
 ```
 $ bundle install
-Bundler 2.1.4 is being run, but "Gemfile" requires version 2.0.2.
+Bundler 2.1.4 is being run, but "Gemfile" requires version "= 2.0.2".
 Installing Bundler 2.0.2...
 (... output of installing Bundler 2.0.2 ...)
 Switching to Bundler 2.0.2...
 (... rest of output, as normal ...)
 $ bundle install
-Bundler 2.1.4 is being run, but "Gemfile" requires version 2.0.2.
+Bundler 2.1.4 is being run, but "Gemfile" requires version "= 2.0.2".
 Switching to Bundler 2.0.2...
 (... normal output ...)
 ```
@@ -56,7 +56,7 @@ Output:
 
 ```
 $ bundle install
-Bundler 2.1.4 is being run, but "Gemfile" requires version 2.0.2.
+Bundler 2.1.4 is being run, but "Gemfile" requires version "~> 2.0".
 Switching to Bundler 2.0.2...
 (... normal output ...)
 ```
@@ -85,7 +85,7 @@ Output:
 
 ```
 $ bundle install
-Bundler 2.1.4 is being run, but "blah.gemspec" requires version 2.0.2.
+Bundler 2.1.4 is being run, but "blah.gemspec" requires version "~> 2.0".
 Switching to Bundler 2.0.2...
 (... normal output ...)
 ```
