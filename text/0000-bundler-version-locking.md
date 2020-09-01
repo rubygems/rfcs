@@ -35,6 +35,8 @@ Installing Bundler 2.0.2...
 Switching to Bundler 2.0.2...
 (... rest of output, as normal ...)
 $ bundle install
+Bundler 2.1.4 is being run, but "Gemfile" requires version 2.0.2.
+Switching to Bundler 2.0.2...
 (... normal output ...)
 ```
 
@@ -140,3 +142,8 @@ The approach in this RFC tries to ensure:
 # Unresolved questions
 
 There are many quality-of-life things that could be added, like telling users if they're relying on an outdated Bundler version, but I feel this can be added after the fact.
+
+Things I want to figure out:
+
+1. If the version it needs is found, should it still print a message explaining what version was ran and which was switched to? Or should it avoid printing anything unless there's a problem?
+   - In theory, passing `--verbose` includes this, because the first line from `bundle install --verbose` is `Running `bundle install --verbose` with bundler 2.0.2`
