@@ -1,7 +1,7 @@
 - Feature Name: ownership-transfer
 - Start Date: 2020-3-19
-- RFC PR: (leave this empty)
-- Bundler Issue: (leave this empty)
+- RFC PR: [rubygems/rfcs#25](https://github.com/rubygems/rfcs/pull/25)
+- Related Issue: [rubygems/rubygems.org#725](https://github.com/rubygems/rubygems.org/issues/725)
 
 # Summary
 
