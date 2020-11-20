@@ -9,9 +9,13 @@ If a user specifies a required Bundler version in the Gemfile/gemspec, it should
 
 # Motivation
 
-There are many times where locking your Bundler version is useful. The existence of `BundlerVersionFinder` shows that, but that approach clearly has not worked. **This RFC assumes that `BundlerVersionFinder` is removed first. The discussion on whether or not to do that should be had elsewhere.**
+There are many times where locking your Bundler version is useful. The existence of `BundlerVersionFinder` shows that, but that approach has been confusing for end-users.
 
 # Guide-level explanation
+
+If you need to pin the Bundler version, simply specify it in your `Gemfile` or `gemspec and run `bundle install` as usual.
+
+If the running version doesn't meet the requirements, Bundler will install the specified version of itself, and then re-run itself using that version.
 
 ## Example 1
 
@@ -25,19 +29,22 @@ source "https://rubygems.org"
 gem "bundler", "= 2.0.2"
 ```
 
-Output:
+Output, first run:
 
 ```
 $ bundle install
 Bundler 2.1.4 is being run, but "Gemfile" requires version "= 2.0.2".
-Installing Bundler 2.0.2...
-(... output of installing Bundler 2.0.2 ...)
-Switching to Bundler 2.0.2...
+Fetching bundler-2.0.2.gem
+(... rest of output from installing Bundler 2.0.2 ...)
+Using bundler 2.0.2
 (... rest of output, as normal ...)
+```
+
+Output, second or later run:
+```
 $ bundle install
-Bundler 2.1.4 is being run, but "Gemfile" requires version "= 2.0.2".
-Switching to Bundler 2.0.2...
-(... normal output ...)
+Using bundler 2.0.2
+(... rest of output, as normal ...)
 ```
 
 ## Example 2
@@ -56,9 +63,8 @@ Output:
 
 ```
 $ bundle install
-Bundler 2.1.4 is being run, but "Gemfile" requires version "~> 2.0".
-Switching to Bundler 2.0.2...
-(... normal output ...)
+Using bundler 2.0.2
+(... rest of output, as normal ...)
 ```
 
 ## Example 3
@@ -81,12 +87,20 @@ blah.gemspec:
 <...>
 ```
 
-Output:
+Output, first run:
 
 ```
 $ bundle install
 Bundler 2.1.4 is being run, but "blah.gemspec" requires version "~> 2.0".
-Switching to Bundler 2.0.2...
+Using bundler 2.0.2
+(... normal output ...)
+```
+
+Output, second or later run:
+
+```
+$ bundle install
+Using bundler 2.0.2
 (... normal output ...)
 ```
 
@@ -112,13 +126,11 @@ $ bundle install
 
 # Reference-level explanation
 
-First, the `BundlerVersionFinder` would be removed, as mentioned in "Motivation."
-
 Then, Bundler would do the following when `bundle` is executed:
 
 1. If the first argument isn't `_<bundler version>_` _and_ the Gemfile/gemspec specify a required version of Bundler _and_ the requirement isn't met by the currently-running version:
    a. Install the required version of Bundler, if needed.
-   b. Replace the current process with `bundle _<required version>_ <args...>` (e.g. something along the lines of `Kernel.exec("bundle", "_#{required_version}_", *args)`)
+   b. Replace the current process with `bundle _<required version>_ <args...>` (e.g. something along the lines of `Kernel.exec($0, "_#{required_version}_", *ARGV)`)
 2. Run as normal.
 
 # Drawbacks
@@ -126,8 +138,6 @@ Then, Bundler would do the following when `bundle` is executed:
 TBD. (I'm sure there are some.)
 
 # Rationale and Alternatives
-
-The main alternative is a refinement of the BundlerVersionFinder, but I think the approach in this RFC better follows the [principle of least surprise](https://en.wikipedia.org/wiki/Principle_of_least_astonishment) by relying on existing knowledge and assumptions.
 
 The approach in this RFC tries to ensure:
 
@@ -139,11 +149,8 @@ The approach in this RFC tries to ensure:
     - Locking the Bundler version is done in the same place and way as any other dependency.
     - Changing the locked Bundler version is done the same way as any other dependency.
 
+I am not aware of any alternatives that accomplish all of these.
+
 # Unresolved questions
 
 There are many quality-of-life things that could be added, like telling users if they're relying on an outdated Bundler version, but I feel this can be added after the fact.
-
-Things I want to figure out:
-
-1. If the version it needs is found, should it still print a message explaining what version was ran and which was switched to? Or should it avoid printing anything unless there's a problem?
-   - In theory, passing `--verbose` includes this, because the first line from `bundle install --verbose` is `Running `bundle install --verbose` with bundler 2.0.2`
