@@ -13,7 +13,7 @@ There are many times where locking your Bundler version is useful. The existence
 
 # Guide-level explanation
 
-If you need to pin the Bundler version, simply specify it in your `Gemfile` or `gemspec and run `bundle install` as usual.
+If you need to pin the Bundler version, simply specify it in your `Gemfile` or `gemspec` file and run `bundle install` as usual.
 
 If the running version doesn't meet the requirements, Bundler will install the specified version of itself, and then re-run itself using that version.
 
@@ -129,13 +129,13 @@ $ bundle install
 Then, Bundler would do the following when `bundle` is executed:
 
 1. If the first argument isn't `_<bundler version>_` _and_ the Gemfile/gemspec specify a required version of Bundler _and_ the requirement isn't met by the currently-running version:
-   a. Install the required version of Bundler, if needed.
-   b. Replace the current process with `bundle _<required version>_ <args...>` (e.g. something along the lines of `Kernel.exec($0, "_#{required_version}_", *ARGV)`)
+   a. Install the required version of Bundler if needed, respecting Gemfile.lock as normal.
+   b. Replace the current process with the equivalent of `bundle <args...>`, using the correct version.
 2. Run as normal.
 
 # Drawbacks
 
-TBD. (I'm sure there are some.)
+This does add localized complexity to part of the codebase, either in the binstub or the `bundle install` process (depending on the implementation).
 
 # Rationale and Alternatives
 
@@ -144,7 +144,7 @@ The approach in this RFC tries to ensure:
 1. It is inherently opt-in: it won't do anything if you don't explicitly list Bundler as a dependency.
 2. The user has more control:
     - It's opt-in, so it won't get in the way if it's not actively wanted.
-    - By implementing it in terms of the `_<some version>_` feature, we provide a way for users to override the behavior if needed.
+    - By respecting the `_<some version>_` feature, we provide a way for users to override the behavior if needed.
 3. It builds on existing conventions:
     - Locking the Bundler version is done in the same place and way as any other dependency.
     - Changing the locked Bundler version is done the same way as any other dependency.
@@ -153,4 +153,6 @@ I am not aware of any alternatives that accomplish all of these.
 
 # Unresolved questions
 
-There are many quality-of-life things that could be added, like telling users if they're relying on an outdated Bundler version, but I feel this can be added after the fact.
+There are many quality-of-life things that could be added, like telling users if they're relying on an outdated Bundler version, but these can be added after the fact.
+
+The exact implentation is still unclear &mdash; it could be part of `bundle install`, or installing the right Bundler version could be handled by the `bundle` binstub.
