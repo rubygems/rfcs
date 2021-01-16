@@ -5,17 +5,35 @@
 
 # Summary
 
-If a user specifies a required Bundler version in the Gemfile/gemspec, it should be installed and used during the normal `bundle install`/`bundle exec` workflow.
+Bundler should respect the exact version specified for a project.
+
+If there is a lockfile (typically `Gemfile.lock`) with a `BUNDLED WITH` statement,
+it should install and use that Bundler version.
+
+Otherwise, if there is a dependency on `bundler` (in `Gemfile` or equivalent),
+it should install and use that Bundler version.
+
+This should happen transparently during the normal `bundle install`/`bundle exec` workflow.
 
 # Motivation
 
-There are many times where locking your Bundler version is useful. The existence of `BundlerVersionFinder` shows that, but that approach has been confusing for end-users.
+There are many times where locking your Bundler version is useful.
+The existence of `BundlerVersionFinder` shows that, but the initial attempt
+caused innumerable problems. This is an attempt to resolve those problems.
 
 # Guide-level explanation
 
-If you need to pin the Bundler version, simply specify it in your `Gemfile` or `gemspec` file and run `bundle install` as usual.
+Pin the Bundler version for a project by either:
 
-If the running version doesn't meet the requirements, Bundler will install the specified version of itself, and then re-run itself using that version.
+1. Commiting `Gemfile.lock`.
+2. Adding `gem "bundler", some_version_constraint` to Gemfile.
+
+If you take approach 1, you can upgrade the locked Bundler version by
+running `bundle update --bundler`.
+
+If you take approach 2, you can upgrade the locked Bundler version by
+changing the version constraint and running `bundle install`.
+
 
 ## Example 1
 
@@ -126,12 +144,22 @@ $ bundle install
 
 # Reference-level explanation
 
-Then, Bundler would do the following when `bundle` is executed:
+When executing a Bundler command, it should do the following:
 
-1. If the first argument isn't `_<bundler version>_` _and_ the Gemfile/gemspec specify a required version of Bundler _and_ the requirement isn't met by the currently-running version:
-   a. Install the required version of Bundler if needed, respecting Gemfile.lock as normal.
-   b. Replace the current process with the equivalent of `bundle <args...>`, using the correct version.
-2. Run as normal.
+1. If the first argument is `_<bundler version>_`:
+    1. If the specified version is running, skip to step 5.
+    2. Install the specified version, if needed.
+    3. Re-execute Bundler using the specified version.
+2. If there is a lockfile with a `BUNDLED WITH` statement:
+    1. If the specified version is running, skip to step 5.
+    2. Install the version specified, if needed.
+    3. Re-execute Bundler using the specified version.
+3. Resolve dependencies.
+4. If the resolved dependencies include `bundler`:
+    1. If the specified version is running, skip to step 5.
+    2. Install the Bundler version specified, if needed.
+    3. Re-execute Bundler using the specified version.
+5. Run as normal.
 
 # Drawbacks
 
@@ -141,9 +169,8 @@ This does add localized complexity to part of the codebase, either in the binstu
 
 The approach in this RFC tries to ensure:
 
-1. It is inherently opt-in: it won't do anything if you don't explicitly list Bundler as a dependency.
-2. The user has more control:
-    - It's opt-in, so it won't get in the way if it's not actively wanted.
+1. It is transparent about what is occurring.
+2. The user stays in control:
     - By respecting the `_<some version>_` feature, we provide a way for users to override the behavior if needed.
 3. It builds on existing conventions:
     - Locking the Bundler version is done in the same place and way as any other dependency.
@@ -153,6 +180,14 @@ I am not aware of any alternatives that accomplish all of these.
 
 # Unresolved questions
 
-There are many quality-of-life things that could be added, like telling users if they're relying on an outdated Bundler version, but these can be added after the fact.
-
-The exact implentation is still unclear &mdash; it could be part of `bundle install`, or installing the right Bundler version could be handled by the `bundle` binstub.
+1. There are many quality-of-life things that could be added, like telling
+   users if they're relying on an outdated Bundler version, but these can be
+   added after the fact.
+2. The exact implentation is still unclear &mdash; it could be part of
+   `bundle install`, or installing the right Bundler version could be handled
+   by the `bundle` binstub.
+3. How do we [preserve the system environment](https://github.com/rubygems/rfcs/pull/29#issuecomment-735416819)?
+   ```
+   $ MY_ENV=a ruby -e 'ENV["MY_ENV"]="b";Kernel.exec("ruby", "-e", "print ENV[\"MY_ENV\"]")'
+   b
+   ```
