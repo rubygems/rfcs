@@ -17,9 +17,45 @@ This should happen transparently during the normal `bundle install`/`bundle exec
 
 # Motivation
 
-There are many times where locking your Bundler version is useful.
-The existence of `BundlerVersionFinder` shows that, but the initial attempt
-caused innumerable problems. This is an attempt to resolve those problems.
+## Usability
+
+Bundler is used in a wide variety of scenarios. Experience has proven that
+seemingly-minor changes in Bundler can cause things to break in certain
+situations, even if the intention was to preserve compatibility.
+
+By explicitly listing Bundler as a dependency, like it allows you to do with
+other dependencies, you can ensure people are using the expected versions.
+
+To keep the exact version, either use a tight constraint (e.g. `= 2.2.24`)
+or use a lockfile. To use a version expected to be compatible, you can
+use a `~>` constraint (e.g. `~> 2.2.0`).
+
+## Source Analysis
+
+Bundler is currently the only Ruby dependency where you can not reliably
+determine from the source code for a project which version will be run.
+Every other gem a project depends on is included in the `Gemfile.lock`,
+and the Ruby version is in the `Gemfile` and/or `.ruby-version`.
+
+Even bundler-audit [does not currently check the Bundler version](https://github.com/rubysec/bundler-audit/pull/299)
+due to the complexity of doing so.
+
+Any sufficiently complex software has security vulnerabilities, and Bundler
+is no exception. By including the version of Bundler used in Gemfile.lock,
+and respecting the version in the Gemfile when Gemfile.lock does not exist,
+we bring Bundler in line with the rest of the dependencies.
+
+## Forcing Bundler Updates
+
+If Bundler has a bug that causes problems for you, or a vulnerability that
+affects you, the best you could currently do is have a script install the
+appropriate version. However, this can only work if people remember to run
+the script.
+
+By allowing the Gemfile and Gemfile.lock files to dictate the version of
+Bundler that is used, it becomes possible to force Bundler updates to avoid
+bugs and vulnerabilities. Running `bundle install` becomes enough to update
+_every_ dependency, including Bundler itself.
 
 # Guide-level explanation
 
