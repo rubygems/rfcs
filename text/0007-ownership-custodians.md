@@ -18,7 +18,7 @@ I propose we introduce a new clearly documented and audited process to deal with
 
 ### Gem Adoption Process
 
-- Given that a user makes an **ownership request** on a specific gem, after a certain time period (e.g. 7 days) they can request a gem custodian review.
+- Given that a user makes an **ownership request** on a specific gem, after a certain grace period (e.g. 7 days) they can request a gem custodian review.
 - The gem custodian can review all details of the user making the request, including all other gem **ownership request**s they have made, and the details of the current gem **ownership request**.
 - Within certain guidelines, they have the ability to approve a gem **ownership request** without the express consent of the current owner.
 	- The gem must meet the general criteria of being abandoned.
@@ -30,7 +30,7 @@ I propose we introduce a new clearly documented and audited process to deal with
 	- Gems which do not meet the requirements for being abandoned require the approval of 3 gem custodians.
 	- Any gem custodian can veto a gem **ownership request**.
 
-If this process fails because the current owner rejected the transfer, the **ownership request** can be revisited after a period of 12 months. If the gem then meets the criteria of being abandoned, this process may be repeated, and the gem custodian should consider this history in their decision making process.
+If this process fails because the current owner rejected the transfer, the **ownership request** owner can re-request a gem custodian after a period of 12 months. The gem custodian should consider this history in their decision making process.
 
 ### Abandoned Gem Criteria
 
