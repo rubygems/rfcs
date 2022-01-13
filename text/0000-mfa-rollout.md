@@ -21,7 +21,7 @@ To reduce most of the risk, users would have MFA enabled on the `UI and API` lev
 
 This policy will be planned in phases and it will  be critical to send communications (eg. announcements and emails) outlining the policy (especially for Phase 2 and 3).
 
-## Phase 1: API Key and Gem Publishing Improvements (est. Early 2022 - Spring 2022)
+## Phase 1: API Key and Gem Publishing Improvements (est. Q1 2022 - Q2 2022)
 
 Along with the current features being implemented (setting MFA on certain keys and WebAuthn support), here is the guide level explanation of the further features we will implement for API keys.
 
@@ -43,7 +43,7 @@ Up for discussion, but we propose that all existing keys will be subject to a ce
 
 When publishing a gem, authors can push multiple gems at once using `gem push <gems> [options]`. If the user has MFA enabled, an OTP code is to be entered once. Only one host may be specified for all gems. The response would include the results of pushing each gem (success or error). This is for gem owners that own many gems and would need to enter an OTP per gem push which can be cumbersome.
 
-## Phase 2: Recommending MFA on Most Downloaded Gems (est. Spring 2022 - Fall 2022)
+## Phase 2: Recommending MFA on Most Downloaded Gems (est. Q2 2022 - Q3 2022)
 
 Given that a user is an owner of the 100 most downloaded gems, there are multiple ways we will encourage users to set up MFA.
 
@@ -66,7 +66,7 @@ Example message for critical gem commands (`gem push/yank`, and `gem owner -a/r`
 [WARNING] For protection of your account and gems, we encourage you to set up multi-factor authentication at https://rubygems.org/multifactor_auth/new. Your account will be required to have MFA enabled in the future.
 ```
 
-## Phase 3: Enforcing MFA on Most Downloaded Gems (est. Fall 2022)
+## Phase 3: Enforcing MFA on Most Downloaded Gems (est. Q4 2022)
 
 At a future date, yet to be determined, we will require MFA to be enabled in order to interact with Rubygems.org. Enforcement will include the following changes.
 
