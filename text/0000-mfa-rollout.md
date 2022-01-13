@@ -93,6 +93,8 @@ Once the rollout of the top 100 gems is successfully rolled out, a similar rollo
 ## API Key and Gem Publishing Improvements
 The API key model will need to be changed in order to implement these improvements. For new features like adding gem scope and expiry date on gems, columns will be added for expiry and gem scope and additional options will need to be added to the CLI and the UI. Setting an expiry on existing keys can be considered a breaking change.
 
+Gem publishing will be improved by allowing gem owners to push mulitple gems at once, so that they only need to enter their OTP code one time. A prototype for pushing multiple gems has been briefly explored here:  https://github.com/Shopify/rubygems/pull/2
+
 ## Policy Rollout
 A group of proofs of concept are listed below that demonstrate what areas of the Rubygems codebase will be modified in order to implement the policy. More detailed explanations and implementation alternatives are available in their PR descriptions.
 
