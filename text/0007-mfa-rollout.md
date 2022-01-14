@@ -98,14 +98,8 @@ Gem publishing will be improved by allowing gem owners to push mulitple gems at 
 ## Policy Rollout
 A group of proofs of concept are listed below that demonstrate what areas of the Rubygems codebase will be modified in order to implement the policy. More detailed explanations and implementation alternatives are available in their PR descriptions.
 
-## Recommending MFA on Most Downloaded Gems
-- UI: https://github.com/Shopify/rubygems.org/pull/3
-- CLI Rubygems.org: https://github.com/Shopify/rubygems.org/pull/9 
-- CLI Rubygems: https://github.com/Shopify/rubygems/pull/1 
-
-## Enforcing MFA on Most Downloaded Gems
-- UI: https://github.com/Shopify/rubygems.org/pull/2 
-- CLI: https://github.com/Shopify/rubygems.org/pull/1
+- UI flow: https://github.com/Shopify/rubygems.org/pull/10
+- CLI: https://github.com/Shopify/rubygems.org/pull/9 
 
 Currently [WebAuthn support](https://github.com/rubygems/rubygems.org/pull/2865) is being added. This is a solution to add security key support as well as giving users the ability to add multiple forms of authentication in addition to the TOTP method. These implementations will need to change slightly based on this feature to check if the user has one form of MFA enabled but the general flow will still be the same. 
 
