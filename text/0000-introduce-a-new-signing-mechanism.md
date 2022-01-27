@@ -1,5 +1,5 @@
-- Feature Name: automatic gem signing and verification
-- Start Date: (fill me in with today's date, YYYY-MM-DD)
+- Feature Name: A new gem signing and verifying mechanism
+- Start Date: 2022-01-28
 - RFC PR: (leave this empty)
 - Bundler Issue: (leave this empty)
 
