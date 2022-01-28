@@ -556,3 +556,13 @@ Some gems may never be updated, but will still be installed by a newer client. W
 ### Bundler
 
 We foresee that Bundler will need to pass through arguments to RubyGems, for example `--verify-signature`. We have not prototyped this capability.
+
+### Independence from large identity providers
+
+There is concern that as it stands, the signing flow works by federating identity with large providers (currently Github, Google and Microsoft). Some members of the community would prefer not to authenticate with such providers.
+
+An alternative flow using email verification links provided by a sigstore-operated service seems technically feasible, but has not been prototyped. We believe that this option would be suitable for maintainers unwilling to rely on major identity providers.
+
+### Key trust and management
+
+Key management and the selection of a key trust policy is notoriously frustrating for implementers. In this case, the question is how to distribute and how to derive trust for the root certificates of several sigstore components. We have not addressed this question in the RFC, but it would need to be settled by no later than the start of Phase 2.
