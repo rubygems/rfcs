@@ -13,7 +13,7 @@ Gem signing as it exists today is unwieldy and little-used, even though signatur
 
 ## Motivation
 
-A Ruby program is no more secure than its gems. An important risk to the ecosystem is that gems are unsigned, leaving them without valuable guarantees of authenticity and integrity.
+A Ruby program is no more secure than its gems. An important risk to the ecosystem is that gems are unsigned, leaving them without valuable guarantees of authenticity (that the gem was signed by whomever claimed to have signed it) and integrity (that the gem was not altered between signing and verifying).
 
 Gem signing is already possible, but in its current incarnation is almost entirely ignored. Of the top 10,000 most-downloaded gems, fewer than 1% have current, valid signatures. These gems are signed by just 65 identities, a miniscule fraction of the thousands of gem owners registered on rubygems.org. ([Source for data](https://docs.google.com/spreadsheets/d/1emSn0fg-cwUrdBcGHgGGLymeVN1rwiCr9DnPmBnmCwk/edit#gid=1832658119))
 
