@@ -45,7 +45,7 @@ When publishing a gem, authors can push multiple gems at once using `gem push <g
 
 ## Phase 2: Recommending MFA on Most Downloaded Gems (est. Q2 2022 - Q3 2022)
 
-Given that a user is an owner of the 100 most downloaded gems, there are multiple ways we will encourage users to set up MFA.
+Given that a user is an owner of any of the 100 most downloaded gems, there are multiple ways we will encourage users to set up MFA.
 
 On the UI, after login, the setup MFA page will be displayed for users to setup MFA. They will have the option to back out and come back to it. A banner will also appear describing why users are seeing this.
 	
@@ -91,7 +91,7 @@ Once the rollout of the top 100 gems is successfully rolled out, a similar rollo
 # Reference-level explanation
 
 ## API Key and Gem Publishing Improvements
-The API key model will need to be changed in order to implement these improvements. For new features like adding gem scope and expiry date on gems, columns will be added for expiry and gem scope and additional options will need to be added to the CLI and the UI. Setting an expiry on existing keys can be considered a breaking change.
+The API key model will need to be changed in order to implement these improvements. For new features like adding gem scope and expiry date on keys, columns will be added for expiry and gem scope and additional options will need to be added to the CLI and the UI. Setting an expiry on existing keys can be considered a breaking change.
 
 Gem publishing will be improved by allowing gem owners to push mulitple gems at once, so that they only need to enter their OTP code one time. A prototype for pushing multiple gems has been briefly explored here:  https://github.com/Shopify/rubygems/pull/2
 
