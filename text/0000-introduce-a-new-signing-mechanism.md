@@ -358,7 +358,7 @@ The process is:
    ```
    POST https://rekor.sigstore.dev/api/v1/log/entries
    {
-    kind: "rekord",
+    kind: "hashedrekord",
     apiVersion: "0.0.1",
     spec: {
       signature: {
@@ -369,7 +369,6 @@ The process is:
         },
       },
       data: {
-        content: Base64.encode64(gem_contents),
         hash: {
           algorithm: "sha256",
           value: gem_digest,
@@ -379,7 +378,7 @@ The process is:
    }
    ```
 
-The gem signature and certificate chain are stored together in an immutable Rekor log entry, such as https://rekor.sigstore.dev/api/v1/log/entries/e66b75a340d2cf240f92cc0fd7f77c3ea0855c7eb5e3e9e2ae873567d9491fdc. In the signature verification flow, we will be able to locate this entry by searching Rekor using the .gem file's digest.
+The gem signature and certificate chain are stored together in an immutable Rekor log entry, such as https://rekor.sigstore.dev/api/v1/log/entries/a9bd97ee5453ce44525069e8ff8703555bc28d9f1553b9745bd6cdff3732bb87. In the signature verification flow, we will be able to locate this entry by searching Rekor using the .gem file's digest.
 
 ### The verifying flow
 
@@ -396,14 +395,14 @@ The following examples illustrate Phase 1.
    ```
    POST https://rekor.sigstore.dev/api/v1/index/retrieve
    {
-     hash: "sha256:b65e5c01770ae7d46293540cc20dd3efd4de8057b2af9cde7e1038c67fd0825a"
+     hash: "sha256:342024b59f3b8fe1a37efce6167023bc368f71ca01779ae81e78b2f4aca376be"
    }
    ```
    
    The response is an array of entry UUIDs for the log entries matching the digest. (Note: Rekor uses its own format for UUIDs, not IETF RFC4122 UUIDs.)
    
    ```json
-   ["e66b75a340d2cf240f92cc0fd7f77c3ea0855c7eb5e3e9e2ae873567d9491fdc"]
+   ["a9bd97ee5453ce44525069e8ff8703555bc28d9f1553b9745bd6cdff3732bb87"]
    ```
 
 1. Retrieve the log entries by their UUIDs.
@@ -411,7 +410,7 @@ The following examples illustrate Phase 1.
    ```
    POST https://rekor.sigstore.dev/api/v1/log/entries/retrieve
    {
-     entryUUIDs: ["e66b75a340d2cf240f92cc0fd7f77c3ea0855c7eb5e3e9e2ae873567d9491fdc"]
+     entryUUIDs: ["a9bd97ee5453ce44525069e8ff8703555bc28d9f1553b9745bd6cdff3732bb87"]
    }
    ```
 
@@ -420,17 +419,17 @@ The following examples illustrate Phase 1.
    ```jsonc
    [
     {
-      "e66b75a340d2cf240f92cc0fd7f77c3ea0855c7eb5e3e9e2ae873567d9491fdc": {
+      "a9bd97ee5453ce44525069e8ff8703555bc28d9f1553b9745bd6cdff3732bb87": {
         "attestation": {},
         "body": "eyJhcGlWZXJza[...]FMwdExRbz0ifX19fQ==",
-        "integratedTime": 1642790103,
-        "logID": "c0d23d6ad406973f9559f3bc5b8445c224f98b9591801d",
-        "logIndex": 1124311,
+        "integratedTime": 1644951590,
+        "logID": "c0d23d6ad406973f9559f3ba2d1ca01f84147d8ffc5b8445c224f98b9591801d",
+        "logIndex": 1408321,
         "verification": {
           "inclusionProof": {
                //…
         	},
-          "signedEntryTimestamp": "MEUCIQDWwF3ehGj+9BBsVdnm5Bg[...]eooKBPZkXLLDVl9t72FkY/VUHw="
+          "signedEntryTimestamp": "MEUCIQC0pBuO1sywbAsf1O96vpv[...]k2V2camfU/Zwqb8FoFUsJLFSV0="
         }
       }
     }
@@ -439,24 +438,24 @@ The following examples illustrate Phase 1.
 
    The log entry's `integratedTime` field records the time of the signature's upload into Rekor. It is the verifiable point in time at which the certificate chain was required to be valid.
    
-   The base64-encoded `body` field is a [_rekord_](https://github.com/sigstore/rekor/blob/main/pkg/types/rekord/v0.0.1/rekord_v0_0_1_schema.json), the base type in Rekor. Decode it to reveal the signature and public signing certificate:
+   The base64-encoded `body` field is a [_hashed rekord_](https://github.com/sigstore/rekor/blob/main/pkg/types/hashedrekord/v0.0.1/hashedrekord_v0_0_1_schema.json), a base type in Rekor. Decode it to reveal the signature and public signing certificate:
    
    ```json
    {
      "apiVersion": "0.0.1",
-     "kind": "rekord",
+     "kind": "hashedrekord",
      "spec": {
        "data": {
          "hash": {
            "algorithm": "sha256",
-           "value": "b65e5c0177[...]2af9cde7e1038c67fd0825a"
+           "value": "342024b59f[...]1779ae81e78b2f4aca376be"
          }
        },
        "signature": {
-         "content": "NJUVmImNVyrpJOiRJNvp4f[...]0esGTEahv7Rr474OPYZAAsA==",
+         "content": "gcshnwE7S9tF9sa8lQkTFS[...]x1ePN9ww7Tiuiko1rv4/P2Q==",
          "format": "x509",
          "publicKey": {
-           "content": "LS0tLS1CRUdJTiBDRVJUSFU[...]tLS0tLZJQ0FURS0tLS0tCg=="
+           "content": "LS0tLS1CRUdJTiBDRVJUSUZ[...]RVJUSUZJQ0FURS0tLS0tCg=="
          }
        }
      }
@@ -479,7 +478,7 @@ The following examples illustrate Phase 1.
 
 1. Validate the certificate chain in a manner similar to how [`Gem::Security::Policy`](https://github.com/rubygems/rubygems/blob/master/lib/rubygems/security/policy.rb) does it today. However, use the Rekor log entry's `integratedTime` field (seen in step 2) to determine whether the signing certificate chain was valid at the time of signing. Recall how the signing certificate is only valid for a 20 minute period.
 
-1. Extract the signature (`spec.signature.content`) from the rekord, decoding the value from base64. Using the public key included in the signing certificate, verify the signature against the gem's digest, which we compute locally.
+1. Extract the signature (`spec.signature.content`) from the hashed rekord, decoding the value from base64. Using the public key included in the signing certificate, verify the signature against the gem's digest, which we compute locally.
 
 1. Rejoice!
 
