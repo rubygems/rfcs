@@ -7,7 +7,7 @@
 
 Multi-factor authentication (MFA) is a method of authentication that requires at least two verification factors to authenticate the user. MFA in the form of TOTPs (Time-Based One-Time Passwords) is currently implemented in Rubygems.
 
-We will add improvements to current API keys and the gem publishing process such as keys scoped to a gem, pushing multiple gems and setting expiries on keys. We will create a policy so that at a certain date, the 100 most downloaded gems (which covers 31 billion out of the 82 billion total downloads as of November 23, 2021) will be required to have MFA enabled either on the `UI and API` or the `UI and gem signin` level. They will have the option to change and set up another device. To help with a smooth transition, there will be a time period of 6 months before the requirement where we will encourage adoption by displaying the setup MFA page after login or sign up and info messages on CLI commands. If the rollout for the 100 most downloaded gems is successful, we can continue this rollout to other existing user accounts.
+We will add improvements to current API keys and the gem publishing process such as keys scoped to a gem, pushing multiple gems and setting expiries on keys. We will create a policy so that at a certain date, owners of gems that exceeds 175 million total downloads (which corresponds to the top 100 most downloaded gems, and covers 31 billion out of the 82 billion total downloads as of November 23, 2021) will be required to have MFA enabled either on the `UI and API` or the `UI and gem signin` level. They will have the option to change and set up another device. To help with a smooth transition, there will be a time period before the requirement is enforced in July/Aug 2022 where we will encourage adoption. This includes displaying the setup MFA page after login or sign up, info messages on CLI commands, sending emails to affected users and writing a blog post outlining this policy. If the rollout for the 100 most downloaded gems is successful, we can continue this rollout to other existing user accounts.
 
 # Motivation
 
@@ -19,9 +19,9 @@ To reduce most of the risk, users would have MFA enabled on the `UI and API` lev
 
 # Guide-level explanation
 
-This policy will be planned in phases and it will  be critical to send communications (eg. announcements and emails) outlining the policy (especially for Phase 2 and 3).
+This policy will be planned in phases and it will be critical to send communications (eg. announcements and emails) outlining the policy (especially for Phase 2 and 3).
 
-## Phase 1: API Key and Gem Publishing Improvements (est. Q1 2022 - Q2 2022)
+## Phase 1: API Key and Gem Publishing Improvements (est. Q1 - Q2 2022, done in parallel with the next phase)
 
 Along with the current features being implemented (setting MFA on certain keys and WebAuthn support), here is the guide level explanation of the further features we will implement for API keys.
 
@@ -43,9 +43,9 @@ Up for discussion, but we propose that all existing keys will be subject to a ce
 
 When publishing a gem, authors can push multiple gems at once using `gem push <gems> [options]`. If the user has MFA enabled, an OTP code is to be entered once. Only one host may be specified for all gems. The response would include the results of pushing each gem (success or error). This is for gem owners that own many gems and would need to enter an OTP per gem push which can be cumbersome.
 
-## Phase 2: Recommending MFA on Most Downloaded Gems (est. Q2 2022 - Q3 2022)
+## Phase 2: Recommending MFA on Most Downloaded Gems (est. ASAP - July/Aug 2022)
 
-Given that a user is an owner of any of the 100 most downloaded gems, there are multiple ways we will encourage users to set up MFA.
+Given that a user is an owner of a gem that exceeds the download threshold of the 100th most download gem, there are multiple ways we will encourage users to set up MFA. An email will be sent to affected owners and a blog post will be created to notify the community of the coming changes.
 
 On the UI, after login, the setup MFA page will be displayed for users to setup MFA. They will have the option to back out and come back to it. A banner will also appear describing why users are seeing this.
 	
@@ -66,7 +66,7 @@ Example message for critical gem commands (`gem push/yank`, and `gem owner -a/r`
 [WARNING] For protection of your account and gems, we encourage you to set up multi-factor authentication at https://rubygems.org/multifactor_auth/new. Your account will be required to have MFA enabled in the future.
 ```
 
-## Phase 3: Enforcing MFA on Most Downloaded Gems (est. Q4 2022)
+## Phase 3: Enforcing MFA on Most Downloaded Gems (est. July/Aug 2022)
 
 At a future date, yet to be determined, we will require MFA to be enabled in order to interact with Rubygems.org. Enforcement will include the following changes.
 
@@ -84,7 +84,7 @@ Example message
 For protection of your account and your gems, you are required to set up multi-factor authentication at https://rubygems.org/multifactor_auth/new
 ```
 
-## Phase 4: Rolling out to the General Public (2023)
+## Phase 4: Rolling out to the General Public (Q4 2022 and beyond)
 
 Once the rollout of the top 100 gems is successfully rolled out, a similar rollout will be done to another cohort of gems until all accounts are required to have MFA enabled. 
 
@@ -96,7 +96,26 @@ The API key model will need to be changed in order to implement these improvemen
 Gem publishing will be improved by allowing gem owners to push mulitple gems at once, so that they only need to enter their OTP code one time. A prototype for pushing multiple gems has been briefly explored here:  https://github.com/Shopify/rubygems/pull/2
 
 ## Policy Rollout
-A group of proofs of concept are listed below that demonstrate what areas of the Rubygems codebase will be modified in order to implement the policy. More detailed explanations and implementation alternatives are available in their PR descriptions.
+A user account will be required to have MFA enabled if they own a gem that exceeds a download threshold of 175 million. This number was selected as it is around the total downloads of the 100th most downloaded gem ([sinatra](https://rubygems.org/gems/sinatra)). There will be two methods introduced in the Rubygems model. One would determine whether the gem owners are encouraged to setup MFA (eg. `mfa_recommended?`) and display relevant warnings on the UI/CLI. The other would determine if gem owners are required to setup MFA (eg. `mfa_required?`) and start blocking sensitive behaviours.
+
+Example implementation for Phase 2
+```
+RECOMMENDED_THRESHOLD = 175000000
+
+def mfa_recommended?
+  downloads > RECOMMENDED_THRESHOLD && !mfa_required?
+end
+
+def mfa_required?
+  # set this once we want this to be enforced
+  false
+end
+```
+
+A mailer would also be implemented to send emails to affected users.
+
+### Prototypes
+A group of proofs of concept are listed below that demonstrate what areas of the Rubygems codebase will be modified in order to implement the policy. The most recent explanation of the implementation was not explored however the design is similar to the ones in the proof of concept.
 
 - UI flow: https://github.com/Shopify/rubygems.org/pull/10
 - CLI: https://github.com/Shopify/rubygems.org/pull/9 
@@ -120,6 +139,12 @@ Without requiring MFA on user accounts, there is a greater risk of malicious gem
 # Unresolved questions
 
 - Legacy keys are a relic of pre Rubygems 3.2 but still are in existence. What would the impact be of removing legacy key support (it comes with removing Rubygems <3.2 also)?  Legacy keys bring a larger risk to accounts and can bypass the restrictions we are placing on API keys. More specifically, how many legacy keys are still being used recently among the 100 most downloaded gem accounts and the greater ecosystem? Are there any metrics determining the amount of people in Rubygems <3.2?
+
+Answer: Legacy keys are not in use, at least from the perspective of rubygems.org. All legacy keys were migrated to the new API key and will support any limitation added on MFA. The GET endpoint used in clients older than 3.2 also creates the new API key (copied from [comment](https://github.com/rubygems/rfcs/pull/36#discussion_r811579693)).
+
 - Risks are not fully resolved if users have the `UI and gem signin` MFA level enabled. How can we better deal with the CI/CD case so that we have a safer plan for them? Could we enforce non-MFA keys to have restrictive scopes like per gem and a short expiry?
 - How do we feel about the number of gems in the initial rollout? We don’t know how many folks in the specified cohort there are, and what portion does not have MFA enabled. It would be insightful to know these metrics and have access to these metrics during the rollout.
+
+Answer: 72 users have MFA enabled with `ui_and_gem_signin` or `ui_and_api`. 10 users are affected by this change. The timeline can be fast forwarded ([comment](https://github.com/rubygems/rfcs/pull/36#issuecomment-1047434234)).
+
 - Should all accounts have MFA enabled by default? There are many gems that have little to no downloads. It would be a lot to ask of these accounts to enable MFA right from the beginning. For the long term, a better solution would be to require MFA for accounts in which their gem downloads reach a certain threshold ([current gem download distribution per gem](https://github.com/Shopify/rubygems.org/pull/7)). The positive of having MFA for all accounts is that we’re setting a higher bar of security if users want to join/stay on the platform. A [prototype](https://github.com/jenshenny/rubygems.org/pull/3) of setting up MFA as a sign up process has been briefly explored.
