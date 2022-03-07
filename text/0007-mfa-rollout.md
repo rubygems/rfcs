@@ -86,7 +86,7 @@ For protection of your account and your gems, you are required to set up multi-f
 
 ## Phase 4: Rolling out to the General Public (Q4 2022 and beyond)
 
-Once the rollout of the top 100 gems is successfully rolled out, a similar rollout will be done to another cohort of gems until all accounts are required to have MFA enabled. 
+Once the rollout of the top 100 most downloaded gems is successfully rolled out, a similar rollout will be done for more gems. The details of this phase will be fleshed out in another RFC.
 
 # Reference-level explanation
 
