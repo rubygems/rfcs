@@ -536,7 +536,7 @@ If transplanted into the main client, this would be a substantial step increase 
 
 ### Other kinds of log entries
 
-Build signatures are a form of attestation that assert authorship or co-authorship of a gem. But there is no need to limit RubyGems attestations to signatures alone. We foresee that all security-critical events could be stored in sigstore to ensure an immutable log independent of RubyGems infrastructure. These could be rubygems.org events such as Push and Yank. Daily TUF repository signatures could provide timestamps of snapshots of the bucket. Gems could be endorsed by individuals who would attest what kind of inspection they had performed. Some work on the latter has been [contemplated by the in-toto community](https://github.com/in-toto/attestation/issues/77).
+Build signatures are a form of attestation that assert authorship or co-authorship of a gem. But there is no need to limit RubyGems attestations to signatures alone. We foresee that all security-critical events could be stored in sigstore to ensure an immutable log independent of RubyGems infrastructure. These could be rubygems.org events such as Push and Yank. Daily TUF repository signatures could provide [snapshots](https://www.youtube.com/watch?v=PJ6b2eoq0NY&list=PLj6h78yzYM2NOCoaYcYbiAf4KPIF36T8t&index=12) of all gems. Gems could be endorsed by individuals who would attest what kind of inspection they had performed. Some work on the latter has been [contemplated by the in-toto community](https://github.com/in-toto/attestation/issues/77).
 
 Ideally, these other log entry types would be developed in partnership with other ecosystems, to ensure monitoring consistency for application and infrastructure security teams.
 
