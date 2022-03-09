@@ -7,7 +7,7 @@
 
 Multi-factor authentication (MFA) is a method of authentication that requires at least two verification factors to authenticate the user. MFA in the form of TOTPs (Time-Based One-Time Passwords) is currently implemented in Rubygems.
 
-We will add improvements to current API keys and the gem publishing process such as keys scoped to a gem, pushing multiple gems and setting expiries on keys. We will create a policy so that at a certain date, owners of gems that exceeds 175 million total downloads (which corresponds to the top 100 most downloaded gems, and covers 31 billion out of the 82 billion total downloads as of November 23, 2021) will be required to have MFA enabled either on the `UI and API` or the `UI and gem signin` level. They will have the option to change and set up another device. To help with a smooth transition, there will be a time period before the requirement is enforced in July/Aug 2022 where we will encourage adoption. This includes displaying the setup MFA page after login or sign up, info messages on CLI commands, sending emails to affected users and writing a blog post outlining this policy. If the rollout for the 100 most downloaded gems is successful, we can continue this rollout to other existing user accounts.
+We will add improvements to current API keys and the gem publishing process such as keys scoped to a gem, pushing multiple gems and setting expiries on keys. We will create a policy so that at a certain date, owners of gems that exceeds 180 million total downloads (which corresponds to the top 100 most downloaded gems, and covers 31 billion out of the 82 billion total downloads as of November 23, 2021) will be required to have MFA enabled either on the `UI and API` or the `UI and gem signin` level. They will have the option to change and set up another device. To help with a smooth transition, there will be a time period before the requirement is enforced in July/Aug 2022 where we will encourage adoption. This includes displaying the setup MFA page after login or sign up, info messages on CLI commands, sending emails to affected users and writing a blog post outlining this policy. If the rollout for the 100 most downloaded gems is successful, we can continue this rollout to other existing user accounts.
 
 # Motivation
 
@@ -45,7 +45,7 @@ When publishing a gem, authors can push multiple gems at once using `gem push <g
 
 ## Phase 2: Recommending MFA on Most Downloaded Gems (est. ASAP - July/Aug 2022)
 
-Given that a user is an owner of a gem that exceeds the download threshold of the 100th most download gem, there are multiple ways we will encourage users to set up MFA. An email will be sent to affected owners and a blog post will be created to notify the community of the coming changes.
+Given that a user is an owner of a gem that exceeds the download threshold of 165 million (roughly 90% of the required threshold), there are multiple ways we will encourage users to set up MFA. An email will be sent to affected owners and a blog post will be created to notify the community of the coming changes.
 
 On the UI, after login, the setup MFA page will be displayed for users to setup MFA. They will have the option to back out and come back to it. A banner will also appear describing why users are seeing this.
 	
@@ -68,7 +68,7 @@ Example message for critical gem commands (`gem push/yank`, and `gem owner -a/r`
 
 ## Phase 3: Enforcing MFA on Most Downloaded Gems (est. July/Aug 2022)
 
-At a future date, yet to be determined, we will require MFA to be enabled in order to interact with Rubygems.org. Enforcement will include the following changes.
+At a future date, yet to be determined, we will require MFA to be enabled in order to interact with Rubygems.org once an owner's gem reaches 180 million downloads. Enforcement will include the following changes.
 
 On the UI, after login, the setup MFA page will be displayed for users to setup MFA. They are able to back out, but the user will be directed to set up MFA whenever they choose to visit a page that requires authentication. A banner will also appear describing the intent. 
 
@@ -96,11 +96,12 @@ The API key model will need to be changed in order to implement these improvemen
 Gem publishing will be improved by allowing gem owners to push mulitple gems at once, so that they only need to enter their OTP code one time. A prototype for pushing multiple gems has been briefly explored here:  https://github.com/Shopify/rubygems/pull/2
 
 ## Policy Rollout
-A user account will be required to have MFA enabled if they own a gem that exceeds a download threshold of 175 million. This number was selected as it is around the total downloads of the 100th most downloaded gem ([sinatra](https://rubygems.org/gems/sinatra)). There will be two methods introduced in the Rubygems model. One would determine whether the gem owners are encouraged to setup MFA (eg. `mfa_recommended?`) and display relevant warnings on the UI/CLI. The other would determine if gem owners are required to setup MFA (eg. `mfa_required?`) and start blocking sensitive behaviours.
+A user account will be required to have MFA enabled if they own a gem that exceeds a download threshold of 180 million. This number was selected as it is around the total downloads of the 100th most downloaded gem ([sinatra](https://rubygems.org/gems/sinatra)). There will be two methods introduced in the Rubygems model. One would determine whether the gem owners are encouraged to setup MFA (eg. `mfa_recommended?`) and display relevant warnings on the UI/CLI at 165 million total downloads (roughly 90% of the required threshold). The other would determine if gem owners are required to setup MFA (eg. `mfa_required?`) and start blocking sensitive behaviours.
 
 Example implementation for Phase 2
 ```
-RECOMMENDED_THRESHOLD = 175000000
+RECOMMENDED_THRESHOLD = 165_000_000
+REQUIRED_THRESHOLD = 180_000_000
 
 def mfa_recommended?
   downloads > RECOMMENDED_THRESHOLD && !mfa_required?
