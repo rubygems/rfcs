@@ -89,7 +89,7 @@ The user can *reasonably* assume that the `hola@mullermp` gem has a namespace of
 
 An organization is a group of users that can own 0 or many gems and 0 or many gem scopes. A user can visit the `mullermp` organization by visiting the following link: `https://rubygems.org/organizations/mullermp` where `mullermp` can be any organization name. On this page, a user would see a "profile" that lists the organization's members (a user named `mullermp`), the gems owned by the organization (one gem, `hola@mullermp`), and any reserved gem scopes (`mullermp` scope). If the user is part of the organization, they can register additional gem scopes, with limitations.
 
-The organization's members are effectively the the gem owners and maintainers. On a gem's page, such as `https://rubygems.org/gems/hola@mullermp`, a new section labeled as "Organization" is displayed, with a link to the `mullermp` organization page. The organization's members, are "splat" onto the gem's page like normal gem owners.
+The organization's members are effectively the gem owners and maintainers. On a gem's page, such as `https://rubygems.org/gems/hola@mullermp`, a new section labeled as "Organization" is displayed, with a link to the `mullermp` organization page. The organization's members, are "splat" onto the gem's page like normal gem owners.
 
 # Reference-level explanation
 
