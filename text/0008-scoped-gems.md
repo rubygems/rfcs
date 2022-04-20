@@ -220,6 +220,9 @@ This gem would still build as `hola@mullermp-0.0.0.gem` and have the same usage 
 **Requirements for having an organization or for reserving gem scopes**
 To prevent a rush on reservations, organizations and/or gem scopes should be limited by some initial process. Eventually this limitation would be removed. How should this be handled?
 
+**Updated Regex to validate one single `@` character in the middle**
+Optionally, the `VALID_NAME_PATTERN` regex can be updated to `\A[a-zA-Z][a-zA-Z0-9\.\-\_]+(@[a-zA-Z0-9\@\.\-\_]+)?\z`. This regex matches `hola` and `hola@mullermp` but does not match `@hola`, `hola@`, and `hola@hola@ruby`.
+
 # Related Links
 
 Namespace gem discussion - https://github.com/rubygems/rfcs/issues/31
