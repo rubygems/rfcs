@@ -187,7 +187,7 @@ The main benefits of this approach are:
 1. It is a frugal change to the RubyGems gem specification that is mostly a naming standard. It removes validation around gem naming on `gem build` and `gem install`, and adds validation for first-time gem publishing via `gem push`.
 2. Avoids changes to the Ruby library (and its versions) and how gems are required.
 3. Similar to reserved prefixes for verified publishers (like [NuGet](https://github.com/NuGet/Home/wiki/NuGet-Package-Identity-Verification)). This approach can be considered as a *reserved suffix*.
-4. Eventual removal of "blacklisted" gem list as important standard Ruby gem names are migrated to scopes (i.e. `socket@ruby`, no need to reserve `socket`).
+4. Eventual removal of the [reserved gem list](https://github.com/rubygems/rubygems.org/blob/fc7cc3a9879d69adb48e2d37282aea34d7f311b0/lib/patterns.rb) as important standard Ruby gem names are migrated to scopes (i.e. `socket@ruby`, no need to reserve `socket`).
 
 ## Alternative 1 - Reserved Prefixes
 
