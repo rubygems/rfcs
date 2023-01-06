@@ -31,8 +31,19 @@ Providing immediate access to gem source from the official rubygems.org webpage 
 
 Offering an official gem content browsing feature will support the security, usability and transparency of Ruby gems and the apps built on them.
 
-
 # Guide-level explanation
+
+Explain the proposal as if it was already implemented and released, and you were teaching it to another developer. That generally means:
+
+- Introducing new named concepts.
+- Explaining the feature largely in terms of examples.
+- Explaining how users should _think_ about the feature, and how it should impact the way they use Bundler. It should explain the impact as concretely as possible.
+- If applicable, provide sample error messages, deprecation warnings, or migration guidance.
+- If applicable, describe the differences between teaching this to existing users and new users.
+
+For implementation-oriented RFCs, this section should focus on how contributors should think about the change, and give examples of its concrete impact. For policy RFCs, this section should provide an example-driven introduction to the policy, and explain its impact in concrete terms.
+
+---
 
 Access gem contents via the new contents url.
 
@@ -57,18 +68,6 @@ A simple list of files in the gem can be obtained via (using bundler as an examp
 
 However, this command doesn't output content types,
 
------
-
-Explain the proposal as if it was already implemented and released, and you were teaching it to another developer. That generally means:
-
-- Introducing new named concepts.
-- Explaining the feature largely in terms of examples.
-- Explaining how users should _think_ about the feature, and how it should impact the way they use Bundler. It should explain the impact as concretely as possible.
-- If applicable, provide sample error messages, deprecation warnings, or migration guidance.
-- If applicable, describe the differences between teaching this to existing users and new users.
-
-For implementation-oriented RFCs, this section should focus on how contributors should think about the change, and give examples of its concrete impact. For policy RFCs, this section should provide an example-driven introduction to the policy, and explain its impact in concrete terms.
-
 # Reference-level explanation
 
 1. Expand the contents of gems
@@ -76,23 +75,6 @@ For implementation-oriented RFCs, this section should focus on how contributors 
 3. Provide an API for users to access the manifest and load individual files.
 
 ### Expand the gems
-
-The volume of traffic at rubygems.org is high enough that we must anticipate and build for high traffic from the start.
-
-There are many options for exposing gem contents, from on-demand expansion to edge-cached block storage. On-demand expansion requires more processing time, whereas the storage requirements for uncompressed gems increases the total storage usage of rubygems.org.
-
-Given that demand for this feature is unknown, the simplest approach is to expand all (or a subset of all) gems into a new S3 bucket.
-Expanding all gems allows serving content to simply assume that a gems source is available in a consistent way.
-If there is a way to create a subset of gems that covers an acceptable percentage of likely usage (ignoring sufficiently old gems or gems that have not been downloaded recently) then we could avoid storage costs for gem contents that will never be browsed.
-
-The S3 bucket should be exclusively for expanded gem contents.
-The contents of a gem will never change, so the storage should be treated as read-only except to remove yanked gems.
-
-Another location should be used for the manifest. While file contents will never change, the calculated information inside the manifest may need to be updated as our information about the usage of this feature improves.
-
-We propose a solution that uses block storage (S3) to store expanded source code.
-
-
 
 This is the technical portion of the RFC. Explain the design in sufficient detail that:
 
@@ -102,7 +84,40 @@ This is the technical portion of the RFC. Explain the design in sufficient detai
 
 The section should return to the examples given in the previous section, and explain more fully how the detailed proposal makes those examples work.
 
+---
+
+The volume of traffic at rubygems.org is high enough that we must anticipate and build for high traffic from the start.
+
+There are many options for exposing gem contents, from on-demand expansion to edge-cached block storage. On-demand expansion requires more processing time, whereas the storage requirements for uncompressed gems increases the total storage usage of rubygems.org.
+
+Given that demand for this feature is unknown, the simplest approach is to expand all (or a subset of all) gems into a new S3 bucket.
+
+Expanding all gems allows us to avoid a complicated proxy process and instead serve content in a consistent way, potentially using a flag to indicate whether the gem has content browsing available.
+
+If there is a way to create a subset of gems that covers an acceptable percentage of likely usage (ignoring sufficiently old gems or gems that have not been downloaded recently) then we could avoid storage costs for gem contents that will never be browsed.
+
+The S3 bucket should be exclusively for expanded gem contents.
+The contents of a gem will never change, so the storage should be treated as read-only except to remove yanked gems.
+
+It will be necessary to store a manifest that indexes all the files in the gem, their size, checksum, and other information. While file contents will never change, the calculated information inside the manifest may need to be updated as our information about the usage of this feature improves or other needs arise. Making this information queryable will improve the feature. Therefore, it makes sense to use the database to store the manifest information.
+
 # Drawbacks
+
+Why should we _not_ do this? Please consider the impact on existing users, on the documentation, on the integration of this feature with other existing and planned features, on the impact on existing apps, etc.
+
+There are tradeoffs to choosing any path, please attempt to identify them here.
+
+---
+
+## Storage size
+
+Initial back of the napkin math landed on about 3TB of storage for the current know sizes of hosted rubygems, assuming about 80% compression ratio and 20% duplicates or binaries that can be thrown out.
+
+A first look at some of the largest gems seems to indicate that removing binaries (such as images) would save a significant amount of space out of the largest gems. It's not clear if this space savings would result in a significant change in expanded size.
+
+We could approach expanding the gems progressively, allowing only the smallest gems to be expanded at first and checking space usage. We could also filter for plain text file times and exclude anything other than plain text.
+
+## Potential for abuse
 
 There is potential for abuse. If rubygems.org now serves public versions of any file that anyone uploads, supported by an edge cache with high availability, it could enable bad actors to host highly available files for free. While this is already possible on github and in many places on the internet, it may become difficult or impossible to discover abuses. Rubygems.org currently only serves compressed archives uploaded as gems, so this change opens a new avenue for storing almost any file of any size.
 
@@ -114,13 +129,13 @@ Limiting the serving of binary files could reduce potential abuse.
 When reviewing npm package browsing, I could not find any packages that contained binary files.
 The manifest format used by npm records when a file is binary, but I could not find any packages that contained a binary file in order to test how they are rendered
 
---
-
-Why should we _not_ do this? Please consider the impact on existing users, on the documentation, on the integration of this feature with other existing and planned features, on the impact on existing apps, etc.
-
-There are tradeoffs to choosing any path, please attempt to identify them here.
-
 # Rationale and Alternatives
+
+- Why is this design the best in the space of possible designs?
+- What other designs have been considered and what is the rationale for not choosing them?
+- What is the impact of not doing this?
+
+---
 
 ## On-demand vs stored contents
 
@@ -157,28 +172,61 @@ Downloading an individual binary file is of limited utility since most gems are 
 
 We therefore decided that including binary files in the manifest, with a checksum and size, is the best way to show that the file is present without serving the file from the content cache.
 
-## File urls vs hash urls
+## Detecting binary files
+
+Detecting binary files is another challenge. As we process the files we probably want to remove binaries from hosting.
+
+One possible approach is the `file` command:
+
+    $ file -b --mime-encoding image.png
+    binary
+    $ file -b --mime-encoding file-with-emoji.json
+    utf-8
+    $ file -b --mime-encoding file.rb
+    us-ascii
+
+The limitation here is that we must find all encodings we consider to be plain text.
+We could combine, or instead use `file --mime-type` which returns the following for the above files:
+
+    image/png
+    application/json
+    text/x-ruby
+
+Clearly there is a need to come up with a comprehensive list of types.
+
+Another alternative is to use grep, which detects binary files. The advantage of grep is that it's binary heuristic is likely to be familiar to most developers. I found this command and it seems to behave as expected.
+
+    grep -Hm1 '^' < file.rb | grep -q 'Binary'
+
+This exits 0 for binary files, 1 for searchable text files.
+
+Grep offers potentially a more complete solution without compiling a list of mime types, but I don't yet know if there will be speed implications that could slow the process.
+
+## File path urls vs hash urls
 
 Depending on how we serve the files, we could host the files by file path within version or host them at a generic checksum hash.
 
-There is one precedent for each version. NPM hosts files at a hex key.
+There is one precedent for each version. NPM hosts files at a hex key. CPAN hosts files by package and path.
 
------
+Hashing the files and storing each file at its hash would allow deduplication. At least some of the files in a gem will not change between versions of a gem, and although most gems will not contain the same file as other gems, there will be some cases where this is true.
 
-- Why is this design the best in the space of possible designs?
-- What other designs have been considered and what is the rationale for not choosing them?
-- What is the impact of not doing this?
+Storing the checksum in the manifest will allow us to identify files by checksum.
+
+One challenge of checksum based shared storage is yank gems. Not all files from a gem could be deleted from the content bucket upon yank. It would be necessary to count the number of times a file was referenced by a manifest.
+
+Depending on how often gems are yanked, this could add an additional layer of complexity to the gem yanking process, requiring every file to be reference counted and deleted individually. This is a one time process per gem yank, but it could add more load and time required when deleting gems.
+
 
 # Unresolved questions
+
+- What parts of the design do you expect to resolve through the RFC process before this gets merged?
+- What parts of the design do you expect to resolve through the implementation of this feature before it is on by default?
+- What related issues do you consider out of scope for this RFC that could be addressed in the future independently of the solution that comes out of this RFC?
+
+---
 
 - How much storage will be required? Is there a cost limit? When do we reach a trade-off between complexity and cost?
 - Do we obscure filenames behind a hash? Does it provide a benefit, discourage misuse? Does it make serving the files easier or harder?
 - How do we display binary files? Do we display that they are in the package but not link to download them? Do we allow them to be downloaded? Could we reduce risk of abuse by not hosting binary files, thus limiting the potential by sharply reducing the types of files that would be hosted for free?
 - Do we expand gems when they are first accessed or expand everything at the start and as uploaded?
 - Do we implement a size or content type constraint to save space? Don't serve binaries or files larger than a few MB?
-
-
-
-- What parts of the design do you expect to resolve through the RFC process before this gets merged?
-- What parts of the design do you expect to resolve through the implementation of this feature before it is on by default?
-- What related issues do you consider out of scope for this RFC that could be addressed in the future independently of the solution that comes out of this RFC?
