@@ -12,28 +12,50 @@ The API should be available for any version of any gem that is currently availab
 
 # Motivation
 
-Ensuring the security and stability of applications requires reviewing the contents of dependencies.
-Currently, to review the contents of a gem, you must either download the gem locally or find the gem's source online.
+Ensuring the security and stability of an application requires reviewing the contents of dependencies.
+Currently, to review the contents of a gem, you must download the gem locally or find the gem's source online.
 
 Online representations of the gem's source code have a number of shortcomings.
-Good practices like changelogs, releases, source control tags, and version diffs do not guarantee that the online source is a reliable representation of the gem package.
+Good practices like changelogs and source control tags are not guaranteed.
+There is no guarantee that the online source is a reliable representation of the gem contents
+
 Rubygems supports selectively omitting files from the packaged build, which means that even well maintained source may differ from the contents of the gem.
 Gems are often built and released from local developer machines which introduces additional build environment variability.
 More nefariously, a malicious gem publisher could publish source code that is different from gem package contents as an attempt to disguise malicious code.
 
 Currently, the only way to inspect the true contents of a gem is to download the gem to a machine and examine the installed source.
 Rubygems.org therefore has the opportunity to offer a trusted source of gem contents on the website and via an API that does not require downloading and extracting the gem package.
-Offering a safe, official gem content browsing feature will support the security and transparency of Ruby gems and the apps built on them.
+
+In addition to supporting the security of rubygems, developers considering using a gem may also appreciate a single first-party source for the actual contents of a gem.
+Providing immediate access to gem source from the official rubygems.org webpage will simplify previewing of gem behavior without having to navigate another site to find the correct version or commit.
+
+Offering an official gem content browsing feature will support the security, usability and transparency of Ruby gems and the apps built on them.
+
 
 # Guide-level explanation
 
-Access gem contents via the new contents url. (TODO: something like /gem-name-1.2.3/contents/files/path/to/file.rb or an obfuscated thing likes contents/files/abcdef1234567890)
+Access gem contents via the new contents url.
 
-A file and directory structure manifest is available at a url (TODO: something like /gem-name-1.2.3/contents/manifest.json)
+A file and directory structure manifest is available at a url (something like /gem-name-1.2.3/contents/manifest.json). This manifest provides information about the files in the gem, with things like content type, file size, checksum, and other relevant details.
 
-Requests to the api may or may not 302 redirect to an S3 bucket or use fastly, depending on how we implement it.
+Source should be returned raw inline in the body, except for binary files. (something like /gem-name-1.2.3/contents/files/path/to/file.rb or a checksum based url like /contents/files/abcdef1234567890)
 
-Source should be returned raw inline in the body. Binary files should either not be served or should return in 
+
+## What's in a gem?
+
+A Ruby gem is a tarball (.tar) containing 3 files:
+
+    metadata.gz
+    data.tar.gz
+    checksums.yaml.gz
+
+`metadata.gz` contains the computed gemspec in yaml format. `data.tar.gz` contains the gem's files, and `checksums.yaml.gz` holds 2 checksums of each of metadata.gz and data.tar.gz.
+
+A simple list of files in the gem can be obtained via (using bundler as an example)
+
+    tar --to-stdout -xf bundler-2.4.2.gem data.tar.gz | tar -zt
+
+However, this command doesn't output content types,
 
 -----
 
@@ -120,17 +142,26 @@ The file structure and file metadata of the gem contents is not currently stored
 
 We could store the gem's manifest in the database, as a file on s3, or directly access the directory structure in the S3 bucket at request time.
 
+The manifest should be able to return information about each file: content type, size, file_path, checksum, binary, file mode.
+
 ## Binary files
 
-A user will want to know the full contents of a gem, including any binary files. However, viewing the binary files in the browser or command line is not useful.
+A user will want to know the full contents of a gem, including any binary files.
+Many gems include compiled binaries for multiple architectures.
+However, viewing the binary files in the browser or command line is not useful.
 
-Many gems include compiled binaries for multiple architectures. Knowing that the compiled binaries are present is useful. Viewing the binary data is less useful.
+If a user wants to confirm the contents of the gem with their local copy, they could compare checksums.
+This indicates that providing checksums of files is probably useful for binary files.
 
-If a user wants to confirm the contents of the gem with their local copy, they could compare checksums. This implies that providing checksums of files could be useful for binary files.
+Downloading an individual binary file is of limited utility since most gems are not so large that extracting a single file from a gem is better than downloading the entire gem. In a gem like libv8-node, the one binary file is almost the entire download size of the gem. In this case, the gem is 30MB, and the individual uncompressed binary is 99MB out of the 100MB uncompressed gem. If we assume this is representative of most gems with binaries, it's a better idea to download the whole gem rather than the individual binary.
 
-Downloading an individual binary file is of limited utility since most gems are not so large that extracting a single file from a gem is better than downloading the entire gem.
+We therefore decided that including binary files in the manifest, with a checksum and size, is the best way to show that the file is present without serving the file from the content cache.
 
-The primary usage of the contents API is expected to be viewing or comparing plain text contents. Knowing that binaries are present and having access to their checksums should be enough to verify binary files.
+## File urls vs hash urls
+
+Depending on how we serve the files, we could host the files by file path within version or host them at a generic checksum hash.
+
+There is one precedent for each version. NPM hosts files at a hex key.
 
 -----
 
@@ -140,9 +171,12 @@ The primary usage of the contents API is expected to be viewing or comparing pla
 
 # Unresolved questions
 
-- How much storage will be required? Is there such a thing as too much? Do we need to try to limit the costs?
+- How much storage will be required? Is there a cost limit? When do we reach a trade-off between complexity and cost?
 - Do we obscure filenames behind a hash? Does it provide a benefit, discourage misuse? Does it make serving the files easier or harder?
 - How do we display binary files? Do we display that they are in the package but not link to download them? Do we allow them to be downloaded? Could we reduce risk of abuse by not hosting binary files, thus limiting the potential by sharply reducing the types of files that would be hosted for free?
+- Do we expand gems when they are first accessed or expand everything at the start and as uploaded?
+- Do we implement a size or content type constraint to save space? Don't serve binaries or files larger than a few MB?
+
 
 
 - What parts of the design do you expect to resolve through the RFC process before this gets merged?
