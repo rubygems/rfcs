@@ -53,16 +53,16 @@ The contents will exactly match the contents of the gem when installed (before a
 In order to access a gem's contents, first load the manifest.
 
 Manifest path:
-`https://rubygems.org/api/v1/contents/rake-13.0.6.json`
+`https://rubygems.org/api/v1/rubygems/rake/versions/13.0.6/contents.json`
 
 A file and directory structure manifest is available at a url (something like /gem-name-1.2.3/contents/manifest.json). This manifest provides information about the files in the gem, with things like content type, file size, checksum, and other relevant details.
 
 Source are returned raw inline in the body. Binary files, including images and compiled output, are not stored or returned.
 
-Content path
-`https://rubygems.org/api/v1/files/f71e8ed126b46346494aad5486874cd8f0aafe95092ed67d2e3cb6110f939abc`.
+Content path:
+`https://rubygems.org/api/v1/rubygems/rake/files/f71e8ed126b46346494aad5486874cd8f0aafe95092ed67d2e3cb6110f939abc`.
 
-The hex string for looking up a file is the SHA256 checksum of the file. This cuts down on storage and increases cache hits by deduplicating identical files. Many files in gems do not change between releases, and some (like LICENSE files) will have significant overlap across gems.
+The hex string for looking up a file is the SHA256 checksum of the file. This cuts down on storage and increases cache hits by deduplicating identical files. Many files in gems do not change between releases.
 
 ## Manifest
 
@@ -94,10 +94,6 @@ The manifest contains a reference to every file with the following information:
 ```
 
 
-
-
-
-
 ## What's in a gem?
 
 A Ruby gem is a tarball (.tar) containing 3 files:
@@ -123,7 +119,7 @@ In order to prepare a gem for the content API, we will need to do a few steps.
   - File path.
   - Content type from `file` command. Filter for binary based on content type.
   - File size
-  - Number of lines
+  - Number of lines?
   - SHA256 checksum
 3. Store each file to an S3 bucket with filename as SHA256 checksum
 
@@ -159,6 +155,30 @@ It will be necessary to store a manifest of all the files in the gem. The manife
 
 Rubygems.org can show a placeholder for the content browsing page until a gem has its contents stored..
 Until a gem version has its manifest created, indicating that the files are available in the cache, rubygems.org can show a placeholder for the content browsing page.
+
+### Store the manifest
+
+Record file information in the database. Probably using a row per file, but possibly use a format that optimizes for serving the data rather than using it relationally.
+
+The manifest table `files` would have the following fields:
+
+- `version_id` - reference to rubygems version
+- `size` - integer in bytes
+- `content_type` - string
+- `path` - string
+- `binary` - boolean
+- `checksum` - sha256, used as the key for browsing source
+- `line_count` - Optional, do we want to compute this?
+- `created_at` - updated_at should not be necessary because rows are read-only besides yank.
+- `yanked_at` - Maybe we mark files as yanked rather than deleting the file row?
+
+
+
+### Provide an API
+
+Serve the manifest via an API, serving the json on demand, probably behind Fastly caching since the data is unlikely to change.
+
+Serve files from CDN or through the app at a consistent URL. The url
 
 ### Yanking a Gem
 
@@ -237,9 +257,39 @@ The result of the query will then be formatted into the same json document every
 Since there will be an entry for every file in every version of every gem, this will be a large table.
 As of this writing, there are 1.4 million gem versions. If the average gem has 30 files (an educated guess) then this table would have about 42 million rows. If the average gem has more files, we could exceed 100 million rows. I believe that postgresql is more than capable of this, but it's certainly approaching a number of rows were we may need to consider performance or resource allocation.
 
-The table would need two indexes: `gem_version_id` and `checksum`. The second is used when yanking a gem to search for any other instances of the same checksum. See "Yanking a Gem" for more.
+The table would need two indexes:
+- An index on `version_id` used for displaying the manifest.
+- A composite index on `rubygem_id,  checksum` used when yanking a gem. See "Yanking a Gem" for more.
+- Alternatively: A composite index on `version_id, checksum` which would require a separate query to find all the versions, allowing us to normalize the rubygem_id out of the table.
 
 Using a postgres jsonb column could allow storing a single formatted document, removing the requirement of formatting the document as json or indexing on gem_version_id. PostgreSQL jsonb columns still support indexing, which would enable the search when yanking a gem. However, this is ofter considered an anti-pattern for most types of data, anything that would need joins or would be regularly searched. We may be able to get away with it since searching will only happen when a gem is yanked, but we still may want to use a relational database an incur the additional processing time of querying and converting to json.
+
+## Serving files directly from a CDN
+
+We could either link directly to the CDN to serve the files or proxy them through the app.
+Serving them through a CDN seems like the only viable approach, since a proxy would have to stream large files through the app, occupying request workers.
+
+However, npmjs.com seems to serve files through the app. For example, accessing a single file's content uses the url: https://www.npmjs.com/package/express/file/95a5762890e5c1c9808921cef095661fc482c5e1f0bba31446ac85595df6237c
+
+We could use CloudFront or Fastly. CloudFront will probably be easiest if the files are hosted on S3.
+
+## File and Manifest URLs
+
+Many options for URIs. There is both a v1 and v2 namespace and different formats between them.
+
+- `https://rubygems.org/api/v1/contents/rake-13.0.6.json`
+- `https://rubygems.org/api/v2/rubygems/rake/versions/13.0.6/contents.json`
+
+Likewise, the file paths can be served through the app or from a CDN.
+
+- `https://rubygems.org/api/v2/rubygems/rake/files/deadbeef12345...abc`
+- `https://rubygems.org/api/v2/files/rake/deadbeef12345...abc`
+- `https://raw.rubygems.org/files/deadbeef12345...abc`
+
+File URLs could even use the path if files are stored as rows in the database:
+
+- `https://rubygems.org/api/v2/rubygems/rake/files/LICENSE`
+- `https://rubygems.org/api/v2/rubygems/rake/files/lib/rake.rb`
 
 ## Binary files
 
@@ -286,11 +336,13 @@ Grep offers potentially a more complete solution without compiling a list of mim
 
 ## File path urls vs hash urls
 
-Depending on how we serve the files, we could host the files by file path within version or host them at a generic checksum hash.
+Depending on how we serve the files, we could host the files by file path within version or host them at a generic checksum hash, or somewhere in between.
 
-There is one precedent for each version. NPM hosts files at a hex key. CPAN hosts files by package and path.
+There is one precedent for each approach among to 2 package managers I found offering code browsing:
+- NPM hosts files at a hex key nested under the package name: `https://www.npmjs.com/package/express/file/95a5762890e5c1c9808921cef095661fc482c5e1f0bba31446ac85595df6237c`.
+- CPAN hosts files by package and path: `https://metacpan.org/release/JMM/Heap-0.80/source/lib/Heap/Elem/Num.pm`
 
-Hashing the files and storing each file at its hash would allow deduplication. At least some of the files in a gem will not change between versions of a gem, and although most gems will not contain the same file as other gems, there will be some cases where this is true.
+Hashing the files and storing each file at its hash would allow deduplication. At least some of the files in a gem will not change between versions of a gem.
 
 Storing the checksum in the manifest will allow us to identify files by checksum.
 
