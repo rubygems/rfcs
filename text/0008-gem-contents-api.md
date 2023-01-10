@@ -5,10 +5,11 @@
 
 # Summary
 
-Provide an API for accessing gem contents. The gem contents could be rendered on rubygems.org or accessed directly view api calls.
-Support security and enable future behavior that could verify gem contents against versions in source control.
-The API should return the directory structure and contents of files inside the actual gem package.
-The API should be available for any version of any gem that is currently available for download.
+Provide an API for accessing gem contents.
+Support code browsing, security, and enable future features that rely on per-file access to gem source.
+The gem contents could be rendered on rubygems.org or accessed directly via the API.
+The API consists of two endpoints: a gem "manifest" endpoint and a file endpoint.
+The API should be available for a substantial number of gem versions, if not all.
 
 # Motivation
 
@@ -16,81 +17,136 @@ Ensuring the security and stability of an application requires reviewing the con
 Currently, to review the contents of a gem, you must download the gem locally or find the gem's source online.
 
 Online representations of the gem's source code have a number of shortcomings.
-Good practices like changelogs and source control tags are not guaranteed.
-There is no guarantee that the online source is a reliable representation of the gem contents
+Source control tags help with viewing and comparing files as they exist in a certain version. Changelogs, diffs and commit logs can help compare versions.
+However, there is no guarantee that the online source code is a reliable representation of the gem contents.
 
-Rubygems supports selectively omitting files from the packaged build, which means that even well maintained source may differ from the contents of the gem.
+Rubygems supports selectively omitting files from the packaged build. This means that even well maintained source may differ from the contents of the gem.
 Gems are often built and released from local developer machines which introduces additional build environment variability.
-More nefariously, a malicious gem publisher could publish source code that is different from gem package contents as an attempt to disguise malicious code.
+More nefariously, a malicious gem publisher could publish source code that is different from the gem package contents in an attempt to disguise malicious code.
 
 Currently, the only way to inspect the true contents of a gem is to download the gem to a machine and examine the installed source.
 Rubygems.org therefore has the opportunity to offer a trusted source of gem contents on the website and via an API that does not require downloading and extracting the gem package.
 
-In addition to supporting the security of rubygems, developers considering using a gem may also appreciate a single first-party source for the actual contents of a gem.
-Providing immediate access to gem source from the official rubygems.org webpage will simplify previewing of gem behavior without having to navigate another site to find the correct version or commit.
-
-Offering an official gem content browsing feature will support the security, usability and transparency of Ruby gems and the apps built on them.
+In addition to supporting the security of rubygems, developers considering using a gem may appreciate a single first-party source for the actual contents of a gem.
+Providing immediate access to gem source from rubygems.org will simplify previewing of gem behavior without having to find the correct version or commit on an external site.
 
 # Guide-level explanation
 
-Explain the proposal as if it was already implemented and released, and you were teaching it to another developer. That generally means:
-
-- Introducing new named concepts.
-- Explaining the feature largely in terms of examples.
-- Explaining how users should _think_ about the feature, and how it should impact the way they use Bundler. It should explain the impact as concretely as possible.
-- If applicable, provide sample error messages, deprecation warnings, or migration guidance.
-- If applicable, describe the differences between teaching this to existing users and new users.
-
-For implementation-oriented RFCs, this section should focus on how contributors should think about the change, and give examples of its concrete impact. For policy RFCs, this section should provide an example-driven introduction to the policy, and explain its impact in concrete terms.
+> Explain the proposal as if it was already implemented and released, and you were teaching it to another developer. That generally means:
+>
+> - Introducing new named concepts.
+> - Explaining the feature largely in terms of examples.
+> - Explaining how users should _think_ about the feature, and how it should impact the way they use Bundler. It should explain the impact as concretely as possible.
+> - If applicable, provide sample error messages, deprecation warnings, or migration guidance.
+> - If applicable, describe the differences between teaching this to existing users and new users.
+>
+> For implementation-oriented RFCs, this section should focus on how contributors should think about the change, and give examples of its concrete impact. For policy RFCs, this section should provide an example-driven introduction to the policy, and explain its impact in concrete terms.
 
 ---
 
 Access gem contents via the new contents url.
 
+This feature introduces 2 new endpoints that serve the file contents of a gem package.
+The files returned from the API are extracted from the official gems store at rubygems.org.
+The contents will exactly match the contents of the gem when installed (before any install scripts are run).
+
+In order to access a gem's contents, first load the manifest.
+
+Manifest path:
+`https://rubygems.org/api/v1/contents/rake-13.0.6.json`
+
 A file and directory structure manifest is available at a url (something like /gem-name-1.2.3/contents/manifest.json). This manifest provides information about the files in the gem, with things like content type, file size, checksum, and other relevant details.
 
-Source should be returned raw inline in the body, except for binary files. (something like /gem-name-1.2.3/contents/files/path/to/file.rb or a checksum based url like /contents/files/abcdef1234567890)
+Source are returned raw inline in the body. Binary files, including images and compiled output, are not stored or returned.
+
+Content path
+`https://rubygems.org/api/v1/files/f71e8ed126b46346494aad5486874cd8f0aafe95092ed67d2e3cb6110f939abc`.
+
+The hex string for looking up a file is the SHA256 checksum of the file. This cuts down on storage and increases cache hits by deduplicating identical files. Many files in gems do not change between releases, and some (like LICENSE files) will have significant overlap across gems.
+
+## Manifest
+
+In order to access a file, you'll need to fetch the manifest for the gem.
+
+curl https://rubygems.org/api/v1/contents/rake-13.0.6.json
+
+The manifest contains a reference to every file with the following information:
+
+(TODO: should we add number of lines? anything else?)
+
+```
+{
+  "/path/to/file.rb": {
+    "size": 123, # in bytes
+    "contentType": "text/plain",
+    "path": "/path/to/file.rb",
+    "binary": false,
+    "key": "abcdef1234567789094aad5486874cd8f0aafe95092ed67d2e3cb6110f939abc"
+  },
+  "/LICENSE": {
+    "size": 222,
+    "contentType": "text/plain",
+    "path": "/LICENSE",
+    "binary": false,
+    "key": "f71e8ed126b46346494aad5486874cd8f0aafe95092ed67d2e3abcabcabcabca"
+  },
+}
+```
+
+
+
+
 
 
 ## What's in a gem?
 
 A Ruby gem is a tarball (.tar) containing 3 files:
 
-    metadata.gz
-    data.tar.gz
-    checksums.yaml.gz
+```
+metadata.gz
+data.tar.gz
+checksums.yaml.gz
+```
 
-`metadata.gz` contains the computed gemspec in yaml format. `data.tar.gz` contains the gem's files, and `checksums.yaml.gz` holds 2 checksums of each of metadata.gz and data.tar.gz.
+`metadata.gz` contains the computed gemspec in yaml format. `data.tar.gz` contains the gem's files (the contents we are interested in), and `checksums.yaml.gz` holds 2 checksums of each of metadata.gz and data.tar.gz.
 
 A simple list of files in the gem can be obtained via (using bundler as an example)
 
-    tar --to-stdout -xf bundler-2.4.2.gem data.tar.gz | tar -zt
+    tar --to-stdout -xf bundler-2.4.2.gem data.tar.gz | tar -zvt
 
-However, this command doesn't output content types,
+This command outputs something similar to `ls -l`.
+
+In order to prepare a gem for the content API, we will need to do a few steps.
+
+1. Expand the data.tar.gz.
+2. Record for each file:
+  - File path.
+  - Content type from `file` command. Filter for binary based on content type.
+  - File size
+  - Number of lines
+  - SHA256 checksum
+3. Store each file to an S3 bucket with filename as SHA256 checksum
+
 
 # Reference-level explanation
 
+> This is the technical portion of the RFC. Explain the design in sufficient detail that:
+>
+> - Its interaction with other features is clear.
+> - It is reasonably clear how the feature would be implemented.
+> - Corner cases are dissected by example.
+>
+> The section should return to the examples given in the previous section, and explain more fully how the detailed proposal makes those examples work.
+
+---
+
 1. Expand the contents of gems
-2. Store a manifest that indicates directory structure and file types (e.g. flagging binary files so they are not displayed in the browser)
+2. Store a manifest that indicates directory structure and file types (e.g. flagging binary files so they are not displayed in the browser).
 3. Provide an API for users to access the manifest and load individual files.
 
 ### Expand the gems
 
-This is the technical portion of the RFC. Explain the design in sufficient detail that:
-
-- Its interaction with other features is clear.
-- It is reasonably clear how the feature would be implemented.
-- Corner cases are dissected by example.
-
-The section should return to the examples given in the previous section, and explain more fully how the detailed proposal makes those examples work.
-
----
-
-The volume of traffic at rubygems.org is high enough that we must anticipate and build for high traffic from the start.
-
-There are many options for exposing gem contents, from on-demand expansion to edge-cached block storage. On-demand expansion requires more processing time, whereas the storage requirements for uncompressed gems increases the total storage usage of rubygems.org.
-
-Given that demand for this feature is unknown, the simplest approach is to expand all (or a subset of all) gems into a new S3 bucket.
+The volume of traffic at rubygems.org is high enough that we should anticipate and build for high traffic from the start.
 
 Expanding all gems allows us to avoid a complicated proxy process and instead serve content in a consistent way, potentially using a flag to indicate whether the gem has content browsing available.
 
@@ -101,13 +157,31 @@ The contents of a gem will never change, so the storage should be treated as rea
 
 It will be necessary to store a manifest that indexes all the files in the gem, their size, checksum, and other information. While file contents will never change, the calculated information inside the manifest may need to be updated as our information about the usage of this feature improves or other needs arise. Making this information queryable will improve the feature. Therefore, it makes sense to use the database to store the manifest information.
 
+Until a gem version has its manifest created, indicating that the files are available in the cache, rubygems.org can show a placeholder for the content browsing page.
+
+### Store the Manifest
+
+The manifest should be stored in the database, either as a json document or rows for each file. The manifest should never change once it is generated.
+
+
+Using postgres jsonb column could allow searching and indexing columns in the document.
+
+### Yanking a gem
+
+One of the challenges of the content system will arise when a gem is yanked.
+
+In addition to the existing behaviors, we will need to delete and invalidate cache on any file that is _unique_ to the gem. This is the "cost" incurred for the benefit of deduplication of files.
+
+In order to delete files unique to the gem, we must search the manifests of all gems to see if any other gem references the same checksum. If the checksum is unique in the database, then the file is deleted and cache invalidated. If not unique, then it is kept.
+It would make sense therefore to have an index on files by checksum to speed up this process.
+
+The process for cleaning yanked gems will be slowed by this reference counting behavior.
+
 # Drawbacks
 
-Why should we _not_ do this? Please consider the impact on existing users, on the documentation, on the integration of this feature with other existing and planned features, on the impact on existing apps, etc.
-
-There are tradeoffs to choosing any path, please attempt to identify them here.
-
----
+> Why should we _not_ do this? Please consider the impact on existing users, on the documentation, on the integration of this feature with other existing and planned features, on the impact on existing apps, etc.
+>
+> There are tradeoffs to choosing any path, please attempt to identify them here.
 
 ## Storage size
 
@@ -131,23 +205,24 @@ The manifest format used by npm records when a file is binary, but I could not f
 
 # Rationale and Alternatives
 
-- Why is this design the best in the space of possible designs?
-- What other designs have been considered and what is the rationale for not choosing them?
-- What is the impact of not doing this?
-
----
+> - Why is this design the best in the space of possible designs?
+> - What other designs have been considered and what is the rationale for not choosing them?
+> - What is the impact of not doing this?
 
 ## On-demand vs stored contents
 
 We must either decompress files on demand through a proxy or serve them from a storage bucket that contains all package contents already expanded.
 
-Rubygems.org already handles considerable twraffic, serving the entire ruby ecosystem with edge-cached packages. However, this does not necessarily translate into similar access patterns for browsing the source code contained in packages. Until the feature is released we will have only a guess of how popular the feature is. (
+Rubygems.org already handles considerable traffic, serving the entire ruby ecosystem with edge-cached packages. However, this does not necessarily translate into similar access patterns for browsing the source code contained in packages. Until the feature is released we can only guess its popularity and usage.
 
-Web crawlers, if allowed to access the files, could ultimately force the on-demand system to decompress every file on a regular basis, making the additional complexity of a decompression proxy moot.
-This would also thwart a caching proxy that decompresses to a permanent location on-demand if all files are crawled soon after the feature is released.
+Web crawlers, if allowed to access the files, could ultimately force the on-demand system to decompress every file on a regular basis or all at once. This could render the additional complexity of a decompression proxy moot.
 
-We therefore suggest the approach of batch decompressing all gems before launching the feature.
+We therefore suggest the approach of batch decompressing all, or a suitable subset of gems, before launching the feature.
 This allows control over the process and permits running it outside of the request/response cycle.
+
+Alternative: We could start this feature on a few hand-selected gems that receive higher traffic. Statistics would be gathered to measure how often the feature is accessed.
+
+Alternative: The limitation of testing a few high traffic gems will be the "long-tail" of smaller gems. It's conceivable that most of the gem content traffic will come from a small number of hits on a large number of different gems. This is also the situation that would cause the most load on a content proxy. An alternative approach to testing for this long-tail is to create the UI for the feature on rubygems.org, but have most of the gems respond with a placeholder. This will indicate how often a feature is clicked but not how many files would have been accessed.
 
 Newly uploaded gems would be decompressed and stored when they are uploaded.
 
@@ -219,9 +294,9 @@ Depending on how often gems are yanked, this could add an additional layer of co
 
 # Unresolved questions
 
-- What parts of the design do you expect to resolve through the RFC process before this gets merged?
-- What parts of the design do you expect to resolve through the implementation of this feature before it is on by default?
-- What related issues do you consider out of scope for this RFC that could be addressed in the future independently of the solution that comes out of this RFC?
+> - What parts of the design do you expect to resolve through the RFC process before this gets merged?
+> - What parts of the design do you expect to resolve through the implementation of this feature before it is on by default?
+> - What related issues do you consider out of scope for this RFC that could be addressed in the future independently of the solution that comes out of this RFC?
 
 ---
 
@@ -230,3 +305,4 @@ Depending on how often gems are yanked, this could add an additional layer of co
 - How do we display binary files? Do we display that they are in the package but not link to download them? Do we allow them to be downloaded? Could we reduce risk of abuse by not hosting binary files, thus limiting the potential by sharply reducing the types of files that would be hosted for free?
 - Do we expand gems when they are first accessed or expand everything at the start and as uploaded?
 - Do we implement a size or content type constraint to save space? Don't serve binaries or files larger than a few MB?
+- How much time should be spent on protecting from abuse in the initial release? Do we respond as needed? Do we already have tools in place to detect and block abuse? Is it even going to be a problem if we limit our exposure only to text files?
