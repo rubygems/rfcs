@@ -155,27 +155,19 @@ If there is a way to create a subset of gems that covers an acceptable percentag
 The S3 bucket should be exclusively for expanded gem contents.
 The contents of a gem will never change, so the storage should be treated as read-only except to remove yanked gems.
 
-It will be necessary to store a manifest that indexes all the files in the gem, their size, checksum, and other information. While file contents will never change, the calculated information inside the manifest may need to be updated as our information about the usage of this feature improves or other needs arise. Making this information queryable will improve the feature. Therefore, it makes sense to use the database to store the manifest information.
+It will be necessary to store a manifest of all the files in the gem. The manifest will return a list of all files with all the necessary information about each file: content type, size, path, checksum, binary, etc.
 
+Rubygems.org can show a placeholder for the content browsing page until a gem has its contents stored..
 Until a gem version has its manifest created, indicating that the files are available in the cache, rubygems.org can show a placeholder for the content browsing page.
 
-### Store the Manifest
-
-The manifest should be stored in the database, either as a json document or rows for each file. The manifest should never change once it is generated.
-
-
-Using postgres jsonb column could allow searching and indexing columns in the document.
-
-### Yanking a gem
+### Yanking a Gem
 
 One of the challenges of the content system will arise when a gem is yanked.
 
-In addition to the existing behaviors, we will need to delete and invalidate cache on any file that is _unique_ to the gem. This is the "cost" incurred for the benefit of deduplication of files.
+In addition to the existing behaviors, we will need to delete and invalidate cache on any file that is _unique_ to the gem. This is the "cost" incurred for the benefit of deduplication of files. Since yanking is much less common, the benefit likely outweighs the cost in this case.
 
 In order to delete files unique to the gem, we must search the manifests of all gems to see if any other gem references the same checksum. If the checksum is unique in the database, then the file is deleted and cache invalidated. If not unique, then it is kept.
 It would make sense therefore to have an index on files by checksum to speed up this process.
-
-The process for cleaning yanked gems will be slowed by this reference counting behavior.
 
 # Drawbacks
 
@@ -191,17 +183,23 @@ A first look at some of the largest gems seems to indicate that removing binarie
 
 We could approach expanding the gems progressively, allowing only the smallest gems to be expanded at first and checking space usage. We could also filter for plain text file times and exclude anything other than plain text.
 
+## Increased database size
+
+Whether the manifest is stored as rows or json documents, the size of the rubygems.org database will increase significantly. This could increase hardware costs and necessitate additional optimizations of the database. Manifest data may require partitioning (by age of gem?) which adds complexity to the database schema. Alternative storage approaches have their own downsides. Storing static manifest files offloads the performance onto a CDN, but makes searching for orphaned checksums more difficult, requiring a separate index in the database.
+
 ## Potential for abuse
 
-There is potential for abuse. If rubygems.org now serves public versions of any file that anyone uploads, supported by an edge cache with high availability, it could enable bad actors to host highly available files for free. While this is already possible on github and in many places on the internet, it may become difficult or impossible to discover abuses. Rubygems.org currently only serves compressed archives uploaded as gems, so this change opens a new avenue for storing almost any file of any size.
+There is potential for abuse.
+If rubygems.org now serves public versions of any file that anyone uploads, supported by an edge cache with high availability, it could enable bad actors to host highly available files for free.
+While this is already possible on github and in many places, it may become difficult or impossible to discover abuses.
+Rubygems.org currently only serves compressed archives uploaded as gems, so this change opens a new avenue for storing almost any file of any size.
 
-Hosting uploaded content the raw form could expose rubygems.org to responsibility for DMCA takedown requests. This could already happen with the archives as is, but when the file contents are served by rubygems.org directly, it may become a larger issue. GitHub [indicates](https://github.blog/2022-01-27-2021-transparency-report/#:~:text=In%202021%2C%20GitHub%20received%20and%20processed%201%2C828%20valid%20DMCA%20takedown,our%20users%20to%20remove%20content.) that they complied with 1828 DMCA takedown requests in 2021. Rubygems.org could still face an increased burden when contents are exposed directly to the internet.
-
-Examining npm's code browsing shows that they deliver a manifest that references files at a single file serving URL rather than serving files at their original path in the package. They use a 64 character hex string, possibly a SHA256 hash of the file, as a key to retrieve a file. There are probably many reasons for this approach. File paths could be long or could contain non-url friendly characters. It limits directly accessing files by obscuring their location. It makes the url for accessing files more uniform which might make access controls or caching simpler.
+Hosting uploaded content the raw form could expose rubygems.org to responsibility for DMCA takedown requests. This could already happen with the archives as is, but when the file contents are served by rubygems.org directly, it may become a larger issue. GitHub [published](https://github.blog/2022-01-27-2021-transparency-report/#:~:text=In%202021%2C%20GitHub%20received%20and%20processed%201%2C828%20valid%20DMCA%20takedown,our%20users%20to%20remove%20content.) information stating that they complied with 1828 DMCA takedown requests in 2021.
+Rubygems.org, though smaller than GitHub, could still face an increased burden when contents are exposed directly to the internet.
 
 Limiting the serving of binary files could reduce potential abuse.
-When reviewing npm package browsing, I could not find any packages that contained binary files.
-The manifest format used by npm records when a file is binary, but I could not find any packages that contained a binary file in order to test how they are rendered
+When comparing with the approach used by npmjs.com, the manifest format records when a file is binary, but I could not find any packages that contained a binary file in order to test how they are rendered
+(My inability to find a package with binary files is potentially due to my own limited knowledge of npm packages.)
 
 # Rationale and Alternatives
 
@@ -230,9 +228,18 @@ Newly uploaded gems would be decompressed and stored when they are uploaded.
 
 The file structure and file metadata of the gem contents is not currently stored by rubygems.org. Serving gem contents requires listing the files that can be accessed and referencing the locations of those files.
 
-We could store the gem's manifest in the database, as a file on s3, or directly access the directory structure in the S3 bucket at request time.
+The manifest should be stored in the database, either as a row per file or a single json document.
+The manifest should never need to change once it is generated, and will always be served in exactly the same way.
 
-The manifest should be able to return information about each file: content type, size, file_path, checksum, binary, file mode.
+If individual rows are used for each file, almost every query will be of the form `select * from files where gem_version_id = ?`.
+The result of the query will then be formatted into the same json document every time.
+
+Since there will be an entry for every file in every version of every gem, this will be a large table.
+As of this writing, there are 1.4 million gem versions. If the average gem has 30 files (an educated guess) then this table would have about 42 million rows. If the average gem has more files, we could exceed 100 million rows. I believe that postgresql is more than capable of this, but it's certainly approaching a number of rows were we may need to consider performance or resource allocation.
+
+The table would need two indexes: `gem_version_id` and `checksum`. The second is used when yanking a gem to search for any other instances of the same checksum. See "Yanking a Gem" for more.
+
+Using a postgres jsonb column could allow storing a single formatted document, removing the requirement of formatting the document as json or indexing on gem_version_id. PostgreSQL jsonb columns still support indexing, which would enable the search when yanking a gem. However, this is ofter considered an anti-pattern for most types of data, anything that would need joins or would be regularly searched. We may be able to get away with it since searching will only happen when a gem is yanked, but we still may want to use a relational database an incur the additional processing time of querying and converting to json.
 
 ## Binary files
 
