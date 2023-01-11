@@ -153,7 +153,6 @@ The contents of a gem will never change, so the storage should be treated as rea
 
 It will be necessary to store a manifest of all the files in the gem. The manifest will return a list of all files with all the necessary information about each file: content type, size, path, checksum, binary, etc.
 
-Rubygems.org can show a placeholder for the content browsing page until a gem has its contents stored..
 Until a gem version has its manifest created, indicating that the files are available in the cache, rubygems.org can show a placeholder for the content browsing page.
 
 ### Store the manifest
