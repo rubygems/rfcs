@@ -105,7 +105,38 @@ Future features and external apps that use the contents API will have a reliable
 
 # Reference-level explanation
 
-TODO...
+### Ingestion process
+
+The following process will happen when a gem is uploaded or manually triggered:
+
+1. A background job is enqueued with the gem version.
+2. The worker pulls down the gem from S3.
+3. The gem in expanded into a temporary directory.
+4. Each file is enumerated, skipping directories.
+5. The worker uses a tool (grep is good at this) to mark all files that contain binary data.
+6. Textual files (not binaries) will have lines counted.
+7. All files will have size, content_type and SHA256 checksums recorded.
+8. A record is created for each file, recording the attributes:
+  ```
+  version_id
+  path (relative to the gem root)
+  size
+  binary (boolean)
+  content_type (mime type determined by `file` command or libmagic)
+  sha256 (checksum)
+  created_at
+  yanked_at (optional, see unresolved questions)
+  ```
+9. New text files are uploaded to a gem contents s3 bucket with key: `/(gemname)/files/(sha256)`
+  (The content S3 bucket is checked to see if a file already exists at the key before uploading.)
+10. An attribute is updated on the Version record to indicate the gem content has been successfully uploaded.
+  (This is necessary because a partially ingested gem would show a partial file list. Better to show all or nothing.)
+
+### Yank process
+
+When a gem is yanked, additional steps will be performed to remove files and stop serving manifests.
+
+
 
 This is the technical portion of the RFC. Explain the design in sufficient detail that:
 
@@ -117,9 +148,35 @@ The section should return to the examples given in the previous section, and exp
 
 # Drawbacks
 
-Why should we *not* do this? Please consider the impact on existing users, on the documentation, on the integration of this feature with other existing and planned features, on the impact on existing apps, etc.
+### Storage and Processing Costs
 
-There are tradeoffs to choosing any path, please attempt to identify them here.
+The most obvious drawback is storage and processing costs.
+The increased storage on S3 will cost more.
+The increased processing, disk and network usage on the worker will increase worker load and may require additional resources.
+The database will become much larger, with the files row using a large and increasing amount of the total database usage.
+The public database dumps will become larger as the number of indexed files increases.
+
+The increases in usage will be particularly large if we decide to index all past gems.
+
+Optimizations are planned to reduce total usage, and not all gems will be indexed.
+We have discussed allowing a gem to be ingested on demand if the content is not already available.
+This could allow users to trigger ingestion of gems they want to browse but were not yet indexed, but avoid ingesting many gems that are not in demand.
+The triggered ingestion could also be performed on-demand when the manifest is requested, returning a 202 indicating that the manifest will be returned later. (see Unresolved Questions)
+
+
+### Potential for Abuse
+
+Another drawback is potential abuse.
+Once gem content is made publicly accessible it could be used to host highly available files through Fastly's CDN.
+Users might also take advantage of the free, highly available hosting of files to use rubygems.org as a CDN.
+It could also be possible to host copyrighted content, exposing rubygems.org to increased handling of DMCA takedowns or other complaints.
+Rubygems.org may already hosts these files.
+We would not be aware of hosting them currently since they are packaged in a way that accessing them or distributing them widely would require some knowledge of rubygems.
+However, once the files are expanded and their raw content readily available at consistent URLs, we may find that abuse increases.
+These effects are already mitigated by avoiding the hosting of binary files, since this cuts down on hosting of ebooks, movies, or other copyrighted material that is almost always packaged in binaries.
+For reference, GitHub published information stating that [they complied with 1828 DMCA takedown requests in 2021](https://github.blog/2022-01-27-2021-transparency-report/#:~:text=In%202021%2C%20GitHub%20received%20and%20processed%201%2C828%20valid%20DMCA%20takedown,our%20users%20to%20remove%20content.).
+Rubygems.org, though smaller than GitHub, could still face an increased burden when contents are exposed directly to the internet.
+
 
 # Rationale and Alternatives
 
@@ -128,6 +185,28 @@ There are tradeoffs to choosing any path, please attempt to identify them here.
 - What is the impact of not doing this?
 
 # Unresolved questions
+
+- Feedback on naming. We can tackle column names in individual PRs, but if there is any structural names we'd like to refine, let's address them here.
+- Should we keep the file manifest of yanked gems?
+  Is a yanked gem intended to be trashed completely or just hidden?
+  One possible downside to keeping the file manifest would be if files were committed that leaked private info just by their name or content type.
+  I'm leaning towards not saving yanked file manifests, but happy to hear comments.
+- Should we try to trigger gem ingestion on-demand when a manifest is requested for a gem that doesn't have one yet?
+  This could accidentally cause us to index every gem if a web crawler attempts to view every "browse" page on every gem, once that is available.
+- The total size of expanded gems and the processing time to achieve adequate coverage is unknown.
+- What subset of gems that should be indexed at the start?
+  We should probably index at least some recent versions of common gems to start.
+  I don't have a heuristic for deciding which gems meet that criteria.
+- Should we aim to index all past gems?
+- Should we host _any_ binary files? Images? I lean towards "no" because image viewing is not the intention of this feature.
+- Is there a reason to store compiled binaries? Would it support any tooling that might otherwise be difficult to implement?
+
+### Out-of-scope for this RFC
+
+- Format and hosting of manifests and files at an API. While I have a design in mind, I'm holding off on creating the design until a future RFC focused on serving this content.
+- Web UI for content browsing.
+- CLI support for content browsing.
+- API, Web, or CLI support for file diffs.
 
 - What parts of the design do you expect to resolve through the RFC process before this gets merged?
 - What parts of the design do you expect to resolve through the implementation of this feature before it is on by default?
