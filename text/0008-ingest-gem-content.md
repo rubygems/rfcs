@@ -180,6 +180,130 @@ Rubygems.org, though smaller than GitHub, could still face an increased burden w
 
 # Rationale and Alternatives
 
+Rubygems.org is maintained by open source contributors that may not be working on this system full-time.
+Therefore, many of the decisions made herein try to optimize for reducing complexity.
+Reduced complexity will make this feature easier to maintain, even if it is not the most optimal solution for price or performance.
+
+### Processing gems
+
+We considered a number of alternate approaches to processing gems.
+We believe the approach presented herein, using background workers within the rubygems.org Rails app, is the simplest and lowest maintenance solution.
+
+#### Transparent Proxy
+
+We considered creating an API that would respond to requests for individual files in a version of a gem.
+The API would transparently load the gem and stream the file from the gem back during the request.
+This would allow us to optimize storage space by unpacking gems and files only as needed.
+
+However, this solution is more complex and more demanding on our infrastructure.
+Streaming content would still require that we know what content is in the gem.
+
+A potential solution using this approach would need to accept requests for any version of a gem.
+It would then try to fetch the `.gem` file, unzip it, ingest the file structure, find the requested file and return it.
+This request would need to reliably happen within a reasonable response time.
+If it was hosted within the rails app, it would need to be fast so that it didn't cause request queuing.
+If it was instead hosted as a standalone app, the necessary infrastructure would add significant complexity.
+
+The trade-off necessary to make this solution performant and reliable could make it very hard to maintain.
+
+One trade-off would be an on-demand caching approach. Only the first "live" request is streamed, then the rest of the gem is stored for future requests.
+Another trade-off could be caching of the manifest, but always streaming gems.
+
+Most of the trade-offs increase complexity compared to a front-loaded approach.
+The proposed solution in this RFC aims only to process a gem a single time.
+The files are stored only once and the process that stores them is not performance or time constrained.
+The files are always accessed directly from block storage through a cache and the manifest is always available before hand.
+
+In another situation, this transparent proxy could make sense.
+It allows the system to store less data and the costs scale exactly with the demand for the feature.
+For rubygems.org, which is does not have a full time staff to maintain a more complex solution, we believe a trade-off towards storage cost and away from operational complexity is warranted.
+
+#### AWS Lambda?
+
+We considered running these on AWS Lambda, using a S3 trigger event when a `.gem` was uploaded.
+The Lambda solution optimizes for higher throughput, but adds costs and complexity.
+For example, while the code in the Lambda function may be similar, it must maintain its own connection to the rubygems.org database in order to save data (whether directly or via an API provided by rubygems.org).
+Testing lambda functions requires more steps and is more involved than testing Rails background jobs.
+The production and staging infrastructure also becomes more complicated, increasing the number of repositories and systems involved in running rubygems.org.
+
+### SHA256 Checksum File Storage
+
+Given the immense size of the uncompressed rubygems.org gem database, it benefits us to make optimizations.
+
+During our research, we were inspired by the solution arrived at by npmjs.com.
+Both the manifest structure and file storage approach is influenced by npmjs.com's design.
+
+When returning files, we serve a manifest that links pathnames to checksums.
+The checksums serve a dual purpose on both npmjs.com and in our solution.
+The first purpose is the common solution of verifiability of file contents.
+The second purpose, which I find clever, is to deduplicate files within a package.
+
+Not every gem version changes every file.
+Most of the files in a gem stay the same between two consecutive releases.
+In our testing, for example, the entire history of rake is about 4 times smaller when deduplicated by matching checksums.
+We therefore propose a solution that uses the checksum of a file as the filename.
+It both increases the likelihood of a cache hit on any given request and reduces the number of files and storage size of almost every gem.
+
+#### Global Checksums
+
+For a time we considered applying this checksum approach globally.
+The apparent benefit would be in deduplicating files across gems.
+Files like LICENSE and other boilerplate could be deduplicated across the entire gem repository.
+Some gems vendor other gems to reduce dependencies (e.g. bundler).
+It seems like there could be enough benefit to warrant this solution.
+
+However, we decided against it for a few reasons, the primary being yanking gems.
+If we had to consider every file as a possible orphan, we would have to search the entire file table without constraints for a matching checksum before deleting a file.
+If we instead constrain our deduplication to only files within the same gem, we get most of the benefit without the increase in file overlaps.
+When only files within the same gem are considered for deduplication, we may miss a few small optimizations, but we reduce complexity.
+Since the files within a gem can only change with versions of that gem, there's less likelihood for race conditions.
+If one gem adds a file, while another yanks the only other reference to that file, we could end up with the incorrect state.
+This is a much smaller problem within the same gem where we already assume consistency between versions and do not have to consider concurrent uploads of any other gems.
+
+Supporting this approach is npmjs.com, which uses package name and checksum to fetch file content.
+Since we have no information about how much space it would save, we also can't appropriately measure the benefit of global hashing.
+
+Once enough gems are indexed, we could estimate the total savings of this approach and consider whether it makes sense to change.
+Starting with the solution as proposed will reduce the complexity of changing.
+Moving from global index to gem-scoped index is more complicated than gem-scoped to global.
+The solution we propose in this RFC could be converted to hash globally with a few simple aws cli commands.
+The reverse, global to gem-scoped migration, would require re-parsing every gem manifest to copy files to the appropriate gem directory.
+
+### Binary Files
+
+There are many ways to detect binary files and choices to be made for serving them.
+
+In the interest of providing gem contents for the purpose of browsing on the web, we think it is best not to serve the binary portions of a gem.
+Binary files are not able to be browsed or diff'd in any meaningful way on a web page.
+
+Avoiding binaries solves many of the problems listed in drawbacks and reduces storage size significantly.
+For example, the `libv8-node-18.13.0.0-arm64-darwin.gem` we examined is 30MB.
+Uncompressed, the whole gem is about 98MB, while the single binary `.a` file is 97MB.
+Not storing the only binary file in this gem saves 99% of the uncompressed storage space while providing almost all the benefit of offering gem browsing.
+
+A user that wants to examine a binary file in a gem is effectively downloading more than the file size of the gem.
+They would be better served downloading the gem for that purpose.
+
+#### Detecting Binary Files
+
+There are many solutions that can be found for detecting binary files.
+We intend at this time to use `grep` to quickly print a list of files that it thinks are binary, and therefore not text searchable.
+We do this by relying on `grep` to output when a binary file matches.
+
+```
+$ grep -RHm1 '^' libv8-node-18.13.0.0-arm64-darwin.gem/* | grep 'Binary'
+Binary file data/vendor/v8/arm64-darwin/libv8/obj/libv8_monolith.a matches
+```
+
+Alternate solutions involve using `file` (the implementation of which varies between different linux and unix based systems) or libmagic (which requires us to add and compile and additional dependency).
+By using `grep` to separate binaries, we use a tool available on every system that behaves in way that is already familiar to most developers.
+
+We still may need to use `file` or `libmagic` to discover the content type of a file.
+The output from `file` on MacOS says it will always have the word `text` in a text file, but it warns that other implementations may not be consistent.
+Using `grep` for determining the `binary` formatted files ensures that we reliably identify files that we don't intend to store.
+
+#
+
 - Why is this design the best in the space of possible designs?
 - What other designs have been considered and what is the rationale for not choosing them?
 - What is the impact of not doing this?
