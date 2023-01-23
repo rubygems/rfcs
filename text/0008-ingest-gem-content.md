@@ -43,18 +43,15 @@ The process will result in a row in the database for each file in a gem, with th
 
 ### Indexing files to create a manifest
 
-The background worker will create a row for each file in a file manifest table.
+The background worker will create a json document manifest of all the files and store it in S3 alongside the files themselves.
 
-The table will hold the path, checksum, size, content type, binary determination, and plain text line count.
-Each row in the table will be associated with the correct gem version, in this example `rake` version `13.0.6`.
+The manifest will hold the path, checksum, size, content type, binary determination, and plain text line count.
 
-The table will be indexed to support fast lookups for common operations.
-The most common is likely "list files for a version of a gem" which will naturally index on the gem `version_id`.
-Other common operations may surface, like finding all versions of the same file within a gem, or all files with the same checksum within a gem.
+In order to support yanking gems, which requires comparing checksums across all versions of a gem, a table will be added to the rubygems.org database.
+The table will consist of one row per gem version with a foreign key for the `version_id` and a jsonb column holding only the SHA256 checksums of all files in that version.
 
-The table is likely to be large with hundreds of millions of rows.
-Performance must be considered to reduce its impact on the rubygems.org database as a whole.
-If performance becomes a concern, a generated json manifest can be stored along with the gem contents in S3 which would solve for the most common requests.
+The table will be indexed on `version_id` to support looking up all checksums in all versions of a gem.
+This table is for the sole purpose of yanking a gem, discussed below.
 
 ### Recording, but not storing binary files
 
@@ -302,19 +299,17 @@ We still may need to use `file` or `libmagic` to discover the content type of a 
 The output from `file` on MacOS says it will always have the word `text` in a text file, but it warns that other implementations may not be consistent.
 Using `grep` for determining the `binary` formatted files ensures that we reliably identify files that we don't intend to store.
 
-#
+### Delete Yanked Gem Manifests
 
-- Why is this design the best in the space of possible designs?
-- What other designs have been considered and what is the rationale for not choosing them?
-- What is the impact of not doing this?
+Originally an unresolved question about deleting the file manifest.
+Given that when gems are yanked, almost all of their information is deleted or hidden.
+We therefore conclude that it doesn't make sense to maintain the manifest of files for a yanked gem.
+All gem file contents and all manifest info will be deleted and purged upon yanking a gem.
+The database table containing the version_id and a list of checksums for each version will be used to determine orphaned files that will be removed and purged.
 
 # Unresolved questions
 
 - Feedback on naming. We can tackle column names in individual PRs, but if there is any structural names we'd like to refine, let's address them here.
-- Should we keep the file manifest of yanked gems?
-  Is a yanked gem intended to be trashed completely or just hidden?
-  One possible downside to keeping the file manifest would be if files were committed that leaked private info just by their name or content type.
-  I'm leaning towards not saving yanked file manifests, but happy to hear comments.
 - Should we try to trigger gem ingestion on-demand when a manifest is requested for a gem that doesn't have one yet?
   This could accidentally cause us to index every gem if a web crawler attempts to view every "browse" page on every gem, once that is available.
 - The total size of expanded gems and the processing time to achieve adequate coverage is unknown.
