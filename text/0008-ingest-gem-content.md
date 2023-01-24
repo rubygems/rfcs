@@ -302,10 +302,9 @@ Using `grep` for determining the `binary` formatted files ensures that we reliab
 ### Delete Yanked Gem Manifests
 
 Originally an unresolved question about deleting the file manifest.
-Given that when gems are yanked, almost all of their information is deleted or hidden.
-We therefore conclude that it doesn't make sense to maintain the manifest of files for a yanked gem.
-All gem file contents and all manifest info will be deleted and purged upon yanking a gem.
-The database table containing the version_id and a list of checksums for each version will be used to determine orphaned files that will be removed and purged.
+Given that when gems are yanked, almost all of their information is deleted or hidden, it doesn't make sense to maintain the manifest of files for a yanked gem.
+All gem file contents and all manifest info will be deleted and purged upon completion of the yank process.
+The database table containing the version_id and a list of checksums for each version will be used to determine orphaned files that will be removed and purged, and then cleaned up to indicate that the process is complete.
 
 # Unresolved questions
 
