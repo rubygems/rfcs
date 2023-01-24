@@ -29,9 +29,9 @@ When a gem is uploaded, rubygems.org saves it as a gem version file named `rake-
 A gem may be installed with `gem install` or the `.gem` file can be downloaded using `gem fetch`.
 Downloading the entire gem locally is currently the only way to access the contents of gem.
 
-With the gem content ingestion system in place, gem contents will be saved to S3 and indexed in the rubygems.org database.
+With the gem content ingestion system in place, gem contents will be saved to a content-only S3 bucket and indexed in the rubygems.org database.
 Binary files will be recorded in metadata, but not stored.
-Gem contents will be stored at an S3 key named for the SHA256 of the file to de-duplicate files within a gem.
+Gem contents will be stored at an S3 key named for the gem name and SHA256 of the file to de-duplicate files within a gem.
 Yanking will remove file contents unique to the gem, as expected, without altering unyanked gem contents.
 
 ### Background process
