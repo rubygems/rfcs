@@ -90,7 +90,7 @@ When a gem is yanked the manifest table rows recording the file names with check
 
 ### Indexing older gem versions
 
-Depending on the implementation of future fetaures, gems can be indexed on demand by request or in an automated way.
+Depending on the implementation of future features, gems can be indexed on demand by request or in an automated way.
 
 ### Impact
 
