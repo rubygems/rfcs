@@ -70,7 +70,7 @@ The average compression across the entire history of the rake gem is about 84%.
 Expanded fully, all versions of rake add up to 42MB.
 
 Many files in rake do not change between versions, allowing us to optimize the storage.
-If each file is instead saved at its SHA256 checksum, causing and identical file to be stored only once, the size of all uncompressed files in `rake` droms from 42MB to 10MB.
+If each file is instead saved at its SHA256 checksum, causing and identical file to be stored only once, the size of all uncompressed files in `rake` drops from 42MB to 10MB.
 The resulting directory has 1226 files for all versions of `rake`.
 
 In order to access a hashed filename, access the file content table to find all files in the version of rake.
