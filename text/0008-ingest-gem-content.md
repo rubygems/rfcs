@@ -133,6 +133,10 @@ The following process will happen when a gem is uploaded or manually triggered:
 
 When a gem is yanked, additional steps will be performed to remove files and stop serving manifests.
 
+1. Load all stored checksums from all versions of the gem.
+2. Find checksums in the yanked version that do not match with any file in another version of the gem.
+3. Remove all files unique to the yanked version of the gem.
+4. Purge Fastly cache of gem content files and manifest.
 
 
 This is the technical portion of the RFC. Explain the design in sufficient detail that:
