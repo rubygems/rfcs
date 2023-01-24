@@ -25,7 +25,7 @@ Rubygems.org plans to add tools for browsing gem content on rubygems.org or thro
 
 For the purpose of illustration, I will use the gem `rake` as an example.
 
-When a gem is uploaded, rubygems.org saves it as a tarball file named `rake-13.0.6.gem`.
+When a gem is uploaded, rubygems.org saves it as a gem version file named `rake-13.0.6.gem`.
 A gem may be installed with `gem install` or the `.gem` file can be downloaded using `gem fetch`.
 Downloading the entire gem locally is currently the only way to access the contents of gem.
 
