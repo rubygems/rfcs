@@ -5,21 +5,29 @@
 
 # Summary
 
-Create a process for the purpose of processing and saving the contents of a gem.
-The process will run each time a gem is uploaded to save information about each file in the gem.
+Create a process expanding and saving the contents of a gem in a way that makes the content easily accessible for future features.
+The process will run each time a gem is uploaded.  to save information about each file in the gem.
 The saved output will include file size, content type, SHA256 checksum, and relative path within the gem.
 In the interest of simplifying this RFC and the feature work that follows, this RFC focuses on only the ingestion and storage of gem content.
 
 # Motivation
 
-It is our hope that we can provide access to individual file data from gem files across versions in a compact and efficient way that supports future features depending on gem content.
+RubyGems.org hosts many packages that users install on their machines and execute.
+It's important for users to be able to see what code they are about to run and view diffs between versions when upgrading.
 
-Creating a gem content ingestion and storage system will enable rubygems.org to support the security and useability gems in the Ruby Gems ecosystem.
-The gem content repository will be the authoritative source for the content of gems, accessible as individual files without without requiring downloading and unpacking a gem.
+Existing source code hosting services currently fill this space.
+However, rubygems.org can't refer users to GitHub to compare gem versions because gems are not required to provide their source publicly.
+Even if an official source repository is linked, the gem build process can modify source files arbitrarily before creating a .gem.
 
-In the near future, the indexed gem content will allow an API for accessing the gem content.
-The API will support both rubygems.org and external projects that wish to use individual gem content.
-Rubygems.org plans to add tools for browsing gem content on rubygems.org or through the `gem` command line interface.
+Rubygems.org hosts the primary gem repository for the Ruby language and is therefore uniquely positioned to offer authoritative gem information.
+Creating a gem content ingestion and storage system will enable rubygems.org to support the security and useability of packages in the Ruby ecosystem.
+The gem content repository will be the authoritative source for the content of gems held by rubygems.org.
+It will provide individual file access without requiring downloading and unpacking a gem.
+
+Potential features include the ability to compare gem versions during gem upgrades, browse gem content online or with the gem cli, share gem version diffs by URL, search indexed gem content across one or all gems or compare individual files across many versions.
+Local file comparison and non-authoritative sources currently provide many these features, but there is no authoritative online source for the internals of gems.
+
+We believe that rubygems.org is uniquely able to provide an authoritative source and an official interface for accessing the actual content of gems. This will support the Ruby community and ensure the future security and maintainability of projects that rely on content from rubygems.org.
 
 # Guide-level explanation
 
