@@ -25,17 +25,46 @@ $ gem exec --gem cocoapods -r '> 1' -r '< 1.3' -v -- pod install --no-color --he
 
 will run `pod install --no-color --help`, using the `pod` executable from the `cocoapods` gem, specificall a version between 1 and 1.3.
 
-The full set of options are:
+The full command help is as follows:
 
 ```
-    -g, --gem=GEM                    Run the executable from the given gem
-    -r, --requirement REQ            Run the gem with the given requirement
-        --pre                        Allow resolving pre-release versions of the gem
-    -c, --[no-]conservative          Prefer the most recent installed version, rather than the latest version overall
-    -v, --[no-]verbose               Run verbosely
-```
+Usage: gem exec [options --] COMMAND [args] [options]
 
-and then optionally `--`, followed by arguments forwarded to the binary.
+  Options:
+        --platform PLATFORM          Specify the platform of gem to exec
+    -v, --version VERSION            Specify version of gem to exec
+        --[no-]prerelease            Allow prerelease versions of a gem
+                                     to be installed
+    -g, --gem GEM                    run the executable from the given gem
+
+
+  Install/Update Options:
+        --conservative               Prefer the most recent installed version,
+                                     rather than the latest version overall
+
+
+  Common Options:
+    -h, --help                       Get help on this command
+    -V, --[no-]verbose               Set the verbose level of output
+    -q, --quiet                      Silence command progress meter
+        --silent                     Silence RubyGems output
+        --config-file FILE           Use this config file instead of default
+        --backtrace                  Show stack backtrace on errors
+        --debug                      Turn on Ruby debugging
+        --norc                       Avoid loading any .gemrc file
+
+
+  Arguments:
+    COMMAND  the executable command to run
+
+  Summary:
+    Run a command from a gem
+
+  Description:
+
+  Defaults:
+    --version '>= 0'
+```
 
 # Reference-level explanation
 
