@@ -1,7 +1,7 @@
 - Feature Name: Add `gem exec` command to install & run an executable from a gem
 - Start Date: 2023-01-24
-- RFC PR: (leave this empty)
-- Bundler Issue: (leave this empty)
+- RFC PR: <https://github.com/rubygems/rfcs/pull/45>
+- Bundler Issue: <https://github.com/rubygems/rubygems/pull/6309>
 
 # Summary
 
