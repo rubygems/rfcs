@@ -5,10 +5,11 @@
 
 # Summary
 
-Create a process expanding and saving the contents of a gem in a way that makes the content easily accessible for future features.
-The process will run each time a gem is uploaded.  to save information about each file in the gem.
+Create a process for extracting and uploading the contents of a gem to make its content easily accessible via S3.
+The process will run each time a gem is uploaded.
 The saved output will include file size, content type, SHA256 checksum, and relative path within the gem.
-In the interest of simplifying this RFC and the feature work that follows, this RFC focuses on only the ingestion and storage of gem content.
+This RFC focuses specifically on the extracting and uploading of content, and the yanking of the content.
+Future RFCs will address usage of gem content for things such as browsing and searching gem content.
 
 # Motivation
 
@@ -16,18 +17,26 @@ RubyGems.org hosts many packages that users install on their machines and execut
 It's important for users to be able to see what code they are about to run and view diffs between versions when upgrading.
 
 Existing source code hosting services currently fill this space.
+Many gems are available on GitHub, GitLab, or other hosting services.
 However, rubygems.org can't refer users to GitHub to compare gem versions because gems are not required to provide their source publicly.
-Even if an official source repository is linked, the gem build process can modify source files arbitrarily before creating a .gem.
+Even if an official source repository is linked, the gem build process can modify source files arbitrarily before creating the gem, and repositories are not guaranteed to match with gem content.
+
+Gem content may also be viewed by manually downloading the gem with `gem fetch` and then examining the contents.
+This requires downloading the content locally without knowing what is in the archive.
+Extracting the gem file without installing it is not straight forward, requiring some understanding of the .gem file structure.
+These challenges increase the barriers for someone interested in examining gem contents.
+This likely skews code review of gems towards code hosting services and tools like GitHub's Dependabot, which only have the published source code and not the actual gem contents.
 
 Rubygems.org hosts the primary gem repository for the Ruby language and is therefore uniquely positioned to offer authoritative gem information.
 Creating a gem content ingestion and storage system will enable rubygems.org to support the security and useability of packages in the Ruby ecosystem.
 The gem content repository will be the authoritative source for the content of gems held by rubygems.org.
 It will provide individual file access without requiring downloading and unpacking a gem.
 
-Potential features include the ability to compare gem versions during gem upgrades, browse gem content online or with the gem cli, share gem version diffs by URL, search indexed gem content across one or all gems or compare individual files across many versions.
+Future features could include the ability to compare gem versions during gem upgrades, browse gem content online or with the `gem` cli, share gem version diffs by URL, search indexed gem content across one or all gems or compare individual files across many versions.
 Local file comparison and non-authoritative sources currently provide many these features, but there is no authoritative online source for the internals of gems.
 
-We believe that rubygems.org is uniquely able to provide an authoritative source and an official interface for accessing the actual content of gems. This will support the Ruby community and ensure the future security and maintainability of projects that rely on content from rubygems.org.
+We believe that rubygems.org is uniquely positioned to provide an authoritative source and an official interface for accessing the content of gems.
+This will support the Ruby community and ensure the future security and maintainability of projects that rely on content from rubygems.org.
 
 # Guide-level explanation
 
@@ -35,38 +44,94 @@ For the purpose of illustration, I will use the gem `rake` as an example.
 
 When a gem is uploaded, rubygems.org saves it as a gem version file named `rake-13.0.6.gem`.
 A gem may be installed with `gem install` or the `.gem` file can be downloaded using `gem fetch`.
-Downloading the entire gem locally is currently the only way to access the contents of gem.
+Downloading the gem locally is currently the only way to access the actual contents of gem.
 
-With the gem content ingestion system in place, gem contents will be saved to a content-only S3 bucket and indexed in the rubygems.org database.
-Binary files will be recorded in metadata, but not stored.
-Gem contents will be stored at an S3 key named for the gem name and SHA256 of the file to de-duplicate files within a gem.
-Yanking will remove file contents unique to the gem, as expected, without altering unyanked gem contents.
+With the gem content ingestion system in place, gem contents will be saved to a content-only S3 bucket and indexed in a way that allows fetching gem content files by path or checksum.
+
+Binary files will be recorded in metadata, but not stored in order to increase security and reduce abuse.
+Gem contents will be stored at an S3 key using the gem name and SHA256 of the file.
+
+Hashing the files allows de-duplicate files within a gem, since two files within the same gem name that have the same SHA256 are nearly guaranteed to have the same content.
+Between versions, it's very common for many of the files in the gem to remain unchanged.
+This allows us to save considerable space in content storage by deduplicating the most commonly duplicated files.
+Deduplicating within the gem, but not globally across all gems, ensures the security and integrity of files matched within a gem.
+Files contained in the content storage can only be changed or uploaded by owners of that gem, preventing carefully crafted global hash collisions or other malicious activity that could span across gems.
+
+Yanking a gem will remove contents unique to the gem.
+Any shared deduplicated files will be preserved using a process that checks the hashed files in all gem versions and preserving any files referenced by any other non-yanked version.
 
 ### Background process
 
-In order to ingest the contents of a gem, a background process can be enqueued to index and store the gem contents.
+In order to ingest the contents of a gem, a background process will be enqueued to index and store the gem contents.
 
-At gem upload time, or on demand, a background worker will download, unpack, record file metadata, index files in the database as rows, and upload each file to a content-only S3 bucket.
-The process will result in a row in the database for each file in a gem, with the relative path, checksum, and size of every file.
+At gem upload time, or on demand to ingest existing gems, a background worker will download, unpack, record, index, and upload each file to a content-only S3 bucket.
 
-### Indexing files to create a manifest
+The process relies entirely on S3 to index gems and their content, resulting in a number of files.
 
-The background worker will create a json document manifest of all the files and store it in S3 alongside the files themselves.
+The background worker creates path and content files as it processes the gem.
+At the end of the process, all of the hashes are collected into a .sha256 file.
+The process also extracts and uploads the .gemspec file.
+No database tables are created or read during this process after initially finding the name of the gem and version number with platform.
 
-The manifest will hold the path, checksum, size, content type, binary determination, and plain text line count.
+### Uploaded File Organization
 
-In order to support yanking gems, which requires comparing checksums across all versions of a gem, a table will be added to the rubygems.org database.
-The table will consist of one row per gem version with a foreign key for the `version_id` and a jsonb column holding only the SHA256 checksums of all files in that version.
+There are 4 types of files created by the upload process.
 
-The table will be indexed on `version_id` to support looking up all checksums in all versions of a gem.
-This table is for the sole purpose of yanking a gem, discussed below.
+#### Spec File
+
+A spec file that contains the actual .gemspec in the .gem file.
+
+S3 Key: `gems/rake/specs/rake-13.0.6.gemspec`.
+
+The spec is generated using `Gem::Package#spec.to_ruby` using the original uploaded .gem file.
+
+#### Path Files
+
+A path file for each file in the gem data with attached metadata.
+
+S3 Key: `gems/rake/paths/13.0.6/lib/rake.rb`.
+
+The path files each contain metadata with the following information about the file and its content.
+
+* The size of the content in bytes.
+* The SHA256 checksum of the content, if available (not for symlinks or files larger than 500MB that were skipped)
+* The MIME type and charset of the file content, if available (potentially not for extremely large files if the type could not be determined from the file header)
+* The original path of the file in the gem.
+* The original file mode, as a string of octal digits (`644`).
+* The symlink target if the file is a symlink.
+
+Directories are skipped and do not have path entries even though they may exist in the gem.
+
+#### Content file
+
+A content file for each indexed file.
+
+S3 Key: `gems/rake/contents/8e43d75374cfcac83933176c32adb3a01d6488aa34c05bf91f6fe8dfe48c52a5`
+
+The S3 object will contain the exact file contents read from the .gem file.
+The content type, content length, and checksum will be saved on the S3 object as found by the content ingestion process, ensuring object integrity after being uploaded.
+
+#### SHA256 file
+
+A file containing the sha256 and file path for all hashed files in the gem.
+
+S3 Key: `gems/rake/checksums/13.0.6.sha256`
+
+The format of this file matches the file output of shasum -a 256 and could be used to check the expanded gem contents against these checksums.
+
+This file is also used to find SHA256 hashes associated with a version for the purpose of the yank process.
+When yanking a version, this is the reference used to find which hashes are still in use by indexed versions and which will be deleted during the yank process.
 
 ### Recording, but not storing binary files
 
-Files that are identified as binary will be flagged in the index and not uploaded to the storage bucket.
+Files that are identified as "binary" will not be uploaded to the storage bucket.
 This is both to save storage space and avoid potential abuse.
 Large compiled binaries, image data, or other binary data is not easily browsed or diffed.
 Both npmjs.com's code browsing and github.com excludes binary files from display.
+
+Non-indexed files will be determined using `libmagic` via the `ruby-magic` ruby gem.
+Any file with a mime type that does not start with `text/` will not have content uploaded.
+Files not exceeding 500MB will have all metadata calculated even if the file is not uploaded.
 
 ### Using SHA256 to reduce storage size and increase cache hits
 
@@ -78,23 +143,25 @@ The average compression across the entire history of the rake gem is about 84%.
 Expanded fully, all versions of rake add up to 42MB.
 
 Many files in rake do not change between versions, allowing us to optimize the storage.
-If each file is instead saved at its SHA256 checksum, causing and identical file to be stored only once, the size of all uncompressed files in `rake` drops from 42MB to 10MB.
-The resulting directory has 1226 files for all versions of `rake`.
+If each file is instead deduplicated by saving it as the SHA256 checksum, the uncompressed size of all files drops to 10MB.
+The resulting directory for the rake gem has 1226 SHA256 named files for all versions of `rake`.
 
-In order to access a hashed filename, access the file content table to find all files in the version of rake.
-Use the relative file path within the gem to find the SHA256 checksum.
-Access the S3 bucket at a key similar to `/rake/files/c588eda0547f6fa72fd7cd9ba2ddc2e81b96e61d690a929e8f579412da27eebd`
+In order to access a hashed filename, two file requests are required.
+First access the file path to retrieve the SHA256 checksum, then access the content at the checksum.
+
+A list of all files in a gem is available by listing the keys within a version of a gem.
 
 ### Yanking gems
 
-The hashed filenames pose a slight challenge when yanking a gem.
-The relative infrequency of yanking means that we can accept a more involved process removing files than adding them or hosting them.
+The hashed filenames pose an interesting challenge when yanking a gem.
+The relative infrequency of yanking means that we can accept a slightly more intensive process when removing files than when adding them or serving them.
 
-When a version is yanked, the file manifest for that version will be used to search for any hashed files that are unique to the yanked gem.
-If a SHA256 named file would be orphaned by yanking the gem (it has no gem versions that reference it) then the file will be deleted from S3 and purged from Fastly's cache.
-If a file has other references, then the file was already a duplicate of a file in a previous version. Files with multiple references will be preserved until the last reference is removed.
+When a version is yanked, the .sha256 file for the yanked version is loaded.
+Then, the .sha256 file for all other versions are loaded and "subtracted" from the yanked version.
+The result is a list of all checksums that are unique to the gem.
 
-When a gem is yanked the manifest table rows recording the file names with checksum, size could be preserved but no longer shown anywhere.
+To reduce race conditions, the yank processes will use the bulk delete S3 API to delete all files within a gem as atomically as S3 allows.
+Since there are multiple overlapping processes for determining which files should and should not exist in the content store, it is always possible to recover the correct state of the content store if any race conditions or errors occur.
 
 ### Indexing older gem versions
 
@@ -103,10 +170,8 @@ Depending on the implementation of future features, gems can be indexed on deman
 ### Impact
 
 The gem ingestion process should be invisible to end users.
-Once the data is used to serve an API, users can expect a slight delay before a newly uploaded gem is available in the content API.
-Yanking a gem might also have a slight delay before files are not available at the checksum urls, but this should be expected already.
-
-Future features and external apps that use the contents API will have a reliable and authoritative source for gem contents that can be accessed on demand.
+Once the data is used to serve an API, users can expect a slight delay before a newly uploaded gem is available in the content API, usually a matter of seconds if there is nothing in the queue.
+Yanking a gem might also have a slight delay before files are not available at the checksum urls, but this should be expected already given the current yank process timing.
 
 # Reference-level explanation
 
@@ -116,26 +181,14 @@ The following process will happen when a gem is uploaded or manually triggered:
 
 1. A background job is enqueued with the gem version.
 2. The worker pulls down the gem from S3.
-3. The gem in expanded into a temporary directory.
+3. The gem in read in memory using existing and newly modified behaviors on rubygems Gem::Package.
 4. Each file is enumerated, skipping directories.
-5. The worker uses a tool (grep is good at this) to mark all files that contain binary data.
-6. Textual files (not binaries) will have lines counted.
-7. All files will have size, content_type and SHA256 checksums recorded.
-8. A record is created for each file, recording the attributes:
-  ```
-  version_id
-  path (relative to the gem root)
-  size
-  binary (boolean)
-  content_type (mime type determined by `file` command or libmagic)
-  sha256 (checksum)
-  created_at
-  yanked_at (optional, see unresolved questions)
-  ```
-9. New text files are uploaded to a gem contents s3 bucket with key: `/(gemname)/files/(sha256)`
+5. The worker uses a libmagic to indentify all files that contain `text/*` content.
+6. All files will have size, content_type and SHA256 checksums recorded.
+7. A path file is created, recording the metadata above:
+8. Files containing text are uploaded to a gem contents s3 bucket keyed by the hash of the content.
   (The content S3 bucket is checked to see if a file already exists at the key before uploading.)
-10. An attribute is updated on the Version record to indicate the gem content has been successfully uploaded.
-  (This is necessary because a partially ingested gem would show a partial file list. Better to show all or nothing.)
+9. The spec file is generated and uploaded.
 
 ### Yank process
 
@@ -144,16 +197,11 @@ When a gem is yanked, additional steps will be performed to remove files and sto
 1. Load all stored checksums from all versions of the gem.
 2. Find checksums in the yanked version that do not match with any file in another version of the gem.
 3. Remove all files unique to the yanked version of the gem.
-4. Purge Fastly cache of gem content files and manifest.
 
+There are potential race conditions when the upload and yank process runs simultaneously for two gems.
+The faster the yank process, the less likely it will be to encounter race condition.
+Ultimately, S3 is not immediately consistent and we may want to add an additional job that checks yanked gems daily to ensure that the files in the content store are as expected.
 
-This is the technical portion of the RFC. Explain the design in sufficient detail that:
-
-- Its interaction with other features is clear.
-- It is reasonably clear how the feature would be implemented.
-- Corner cases are dissected by example.
-
-The section should return to the examples given in the previous section, and explain more fully how the detailed proposal makes those examples work.
 
 # Drawbacks
 
@@ -215,8 +263,9 @@ If it was instead hosted as a standalone app, the necessary infrastructure would
 
 The trade-off necessary to make this solution performant and reliable could make it very hard to maintain.
 
-One trade-off would be an on-demand caching approach. Only the first "live" request is streamed, then the rest of the gem is stored for future requests.
-Another trade-off could be caching of the manifest, but always streaming gems.
+One trade-off would be an on-demand caching approach.
+Only the first "live" request is streamed, then the rest of the gem is stored for future requests.
+Another trade-off could be caching of the manifest, but always streaming files from the gem.
 
 Most of the trade-offs increase complexity compared to a front-loaded approach.
 The proposed solution in this RFC aims only to process a gem a single time.
@@ -227,11 +276,11 @@ In another situation, this transparent proxy could make sense.
 It allows the system to store less data and the costs scale exactly with the demand for the feature.
 For rubygems.org, which is does not have a full time staff to maintain a more complex solution, we believe a trade-off towards storage cost and away from operational complexity is warranted.
 
-#### AWS Lambda?
+#### AWS Lambda
 
 We considered running these on AWS Lambda, using a S3 trigger event when a `.gem` was uploaded.
 The Lambda solution optimizes for higher throughput, but adds costs and complexity.
-For example, while the code in the Lambda function may be similar, it must maintain its own connection to the rubygems.org database in order to save data (whether directly or via an API provided by rubygems.org).
+For example, while the code in the Lambda function may be similar to a background job, it would still be a separate code base from the rails app.
 Testing lambda functions requires more steps and is more involved than testing Rails background jobs.
 The production and staging infrastructure also becomes more complicated, increasing the number of repositories and systems involved in running rubygems.org.
 
@@ -240,17 +289,15 @@ The production and staging infrastructure also becomes more complicated, increas
 Given the immense size of the uncompressed rubygems.org gem database, it benefits us to make optimizations.
 
 During our research, we were inspired by the solution arrived at by npmjs.com.
-Both the manifest structure and file storage approach is influenced by npmjs.com's design.
+Both the manifest structure and file storage approach herein is influenced by npmjs.com's design.
 
-When returning files, we serve a manifest that links pathnames to checksums.
-The checksums serve a dual purpose on both npmjs.com and in our solution.
-The first purpose is the common solution of verifiability of file contents.
-The second purpose, which I find clever, is to deduplicate files within a package.
+We use a manifest to convert between paths and file checksums.
+The checksums serve a dual purpose on both npmjs.com and in our solution, to both verify and deduplicate content.
 
-Not every gem version changes every file.
+Not every file changes between every version of a gem.
 Most of the files in a gem stay the same between two consecutive releases.
 In our testing, for example, the entire history of rake is about 4 times smaller when deduplicated by matching checksums.
-We therefore propose a solution that uses the checksum of a file as the filename.
+We therefore propose a solution that uses the checksum of a file as the filename for content storage.
 It both increases the likelihood of a cache hit on any given request and reduces the number of files and storage size of almost every gem.
 
 #### Global Checksums
@@ -262,21 +309,22 @@ Some gems vendor other gems to reduce dependencies (e.g. bundler).
 It seems like there could be enough benefit to warrant this solution.
 
 However, we decided against it for a few reasons, the primary being yanking gems.
-If we had to consider every file as a possible orphan, we would have to search the entire file table without constraints for a matching checksum before deleting a file.
+If we had to consider every file as a possible orphan, we would have to search an index of every file hash, without constraints, for a matching checksum before deleting a file.
+This would require building a reverse index, hash => version, for every hash of every file.
+It's possible that this additional burden could negate the space savings entirely.
+
 If we instead constrain our deduplication to only files within the same gem, we get most of the benefit without the increase in file overlaps.
-When only files within the same gem are considered for deduplication, we may miss a few small optimizations, but we reduce complexity.
-Since the files within a gem can only change with versions of that gem, there's less likelihood for race conditions.
+When only files within the same gem are considered for deduplication, we may miss a few small optimizations, but we reduce complexity while still gaining a large reduction in storage size.
+Since the files within a gem can only change with versions of that gem, there's less likelihood for race conditions during yank.
 If one gem adds a file, while another yanks the only other reference to that file, we could end up with the incorrect state.
 This is a much smaller problem within the same gem where we already assume consistency between versions and do not have to consider concurrent uploads of any other gems.
 
-Supporting this approach is npmjs.com, which uses package name and checksum to fetch file content.
+Npmjs.com lends some validity to this approach. File contents are stored at a path which includes the package name and checksum.
 Since we have no information about how much space it would save, we also can't appropriately measure the benefit of global hashing.
 
 Once enough gems are indexed, we could estimate the total savings of this approach and consider whether it makes sense to change.
-Starting with the solution as proposed will reduce the complexity of changing.
-Moving from global index to gem-scoped index is more complicated than gem-scoped to global.
-The solution we propose in this RFC could be converted to hash globally with a few simple aws cli commands.
-The reverse, global to gem-scoped migration, would require re-parsing every gem manifest to copy files to the appropriate gem directory.
+Starting with the solution proposed in this RFC will reduce the complexity of changing to global deduplication, if it is ever warranted.
+Moving from global index to gem-scoped index is more complicated than gem-scoped to global, the former requiring only a few s3 cli commands, whereas the latter requires careful reindexing and duplication of every file.
 
 ### Binary Files
 
@@ -286,41 +334,27 @@ In the interest of providing gem contents for the purpose of browsing on the web
 Binary files are not able to be browsed or diff'd in any meaningful way on a web page.
 
 Avoiding binaries solves many of the problems listed in drawbacks and reduces storage size significantly.
-For example, the `libv8-node-18.13.0.0-arm64-darwin.gem` we examined is 30MB.
-Uncompressed, the whole gem is about 98MB, while the single binary `.a` file is 97MB.
+For example, the gem `libv8-node-18.13.0.0-arm64-darwin.gem` we examined is 30MB.
+Uncompressed, the whole gem is about 98MB, with a single binary `.a` file that is 97MB.
 Not storing the only binary file in this gem saves 99% of the uncompressed storage space while providing almost all the benefit of offering gem browsing.
 
 A user that wants to examine a binary file in a gem is effectively downloading more than the file size of the gem.
-They would be better served downloading the gem for that purpose.
+They would be better served downloading the gem directly for the purpose of examining the binary files contained within.
 
 #### Detecting Binary Files
 
 There are many solutions that can be found for detecting binary files.
-We intend at this time to use `grep` to quickly print a list of files that it thinks are binary, and therefore not text searchable.
-We do this by relying on `grep` to output when a binary file matches.
-
-```
-$ grep -RHm1 '^' libv8-node-18.13.0.0-arm64-darwin.gem/* | grep 'Binary'
-Binary file data/vendor/v8/arm64-darwin/libv8/obj/libv8_monolith.a matches
-```
-
-Alternate solutions involve using `file` (the implementation of which varies between different linux and unix based systems) or libmagic (which requires us to add and compile and additional dependency).
-By using `grep` to separate binaries, we use a tool available on every system that behaves in way that is already familiar to most developers.
-
-We still may need to use `file` or `libmagic` to discover the content type of a file.
-The output from `file` on MacOS says it will always have the word `text` in a text file, but it warns that other implementations may not be consistent.
-Using `grep` for determining the `binary` formatted files ensures that we reliably identify files that we don't intend to store.
+We intend to use `libmagic` in memory via the ruby gem `ruby-magic` to generate mime types for every file.
+We will exclude files with mime types starting with anything other than `text/`.
 
 ### Delete Yanked Gem Manifests
 
 Originally an unresolved question about deleting the file manifest.
 Given that when gems are yanked, almost all of their information is deleted or hidden, it doesn't make sense to maintain the manifest of files for a yanked gem.
 All gem file contents and all manifest info will be deleted and purged upon completion of the yank process.
-The database table containing the version_id and a list of checksums for each version will be used to determine orphaned files that will be removed and purged, and then cleaned up to indicate that the process is complete.
 
 # Unresolved questions
 
-- Feedback on naming. We can tackle column names in individual PRs, but if there is any structural names we'd like to refine, let's address them here.
 - Should we try to trigger gem ingestion on-demand when a manifest is requested for a gem that doesn't have one yet?
   This could accidentally cause us to index every gem if a web crawler attempts to view every "browse" page on every gem, once that is available.
 - The total size of expanded gems and the processing time to achieve adequate coverage is unknown.
@@ -328,16 +362,13 @@ The database table containing the version_id and a list of checksums for each ve
   We should probably index at least some recent versions of common gems to start.
   I don't have a heuristic for deciding which gems meet that criteria.
 - Should we aim to index all past gems?
-- Should we host _any_ binary files? Images? I lean towards "no" because image viewing is not the intention of this feature.
-- Is there a reason to store compiled binaries? Would it support any tooling that might otherwise be difficult to implement?
+- Should we host _any_ binary files? Images? I lean towards "no" because image viewing is not the intention of this feature and increases the likelihood that rubygems.org is abused for free hosting.
+- Is there any reason to store compiled binaries? Would it support any tooling that might otherwise be difficult to implement such as virus scanning?
 
 ### Out-of-scope for this RFC
 
-- Format and hosting of manifests and files at an API. While I have a design in mind, I'm holding off on creating the design until a future RFC focused on serving this content.
+- Format and hosting of manifests and files at an API.
 - Web UI for content browsing.
 - CLI support for content browsing.
 - API, Web, or CLI support for file diffs.
-
-- What parts of the design do you expect to resolve through the RFC process before this gets merged?
-- What parts of the design do you expect to resolve through the implementation of this feature before it is on by default?
-- What related issues do you consider out of scope for this RFC that could be addressed in the future independently of the solution that comes out of this RFC?
+- API, Web, or CLI for code search.
