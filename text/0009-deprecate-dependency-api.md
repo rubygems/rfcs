@@ -1,6 +1,6 @@
 - Feature Name: Deprecating the RubyGems.org dependency API
 - Start Date: 2023-01-27
-- RFC PR: (leave this empty)
+- RFC PR: https://github.com/rubygems/rfcs/pull/46
 - Bundler Issue: (leave this empty)
 
 # Summary
