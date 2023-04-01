@@ -5,14 +5,14 @@
 
 # Summary
 
-We will move to storing download counts in a timeseries database (specifically, timescale), to enable displaying download counts (for all gems, all versions of a single gem, or a single version) grouped by time period (e.g. the last day, month, or year).
+Today, RubyGems only stores one "all time" download count per gem. Users and maintainers would like to see download counts for each gem or version per day, week, month, or year in order to see usage changes over time. In order to provide these counts, we will start storing download counts in TimescaleDB, a time-series database.
 
 # Motivation
 
-Users would like to see this data.
-We would like to make insertion of download counts require no contention on the production postgres database.
-We would like to avoid maintaining bespoke infrastructure for download count tracking.
-We want to migrate to the new storage system without losing historical download counts.
+- Users and maintainers would like to see gem usage over time.
+- We would like to make insertion of download counts require no contention on the production postgres database.
+- We would like to avoid maintaining bespoke infrastructure for download count tracking.
+- We want to migrate to the new storage system without losing historical download counts.
 
 As a followup, we will work on displaying the new data in RubyGems.org, but that design work is out of scope for this RFC.
 
