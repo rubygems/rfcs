@@ -16,8 +16,6 @@ Today, RubyGems only stores one "all time" download count per gem. Users and mai
 
 As a followup, we will work on displaying the new data in RubyGems.org, but that design work is out of scope for this RFC.
 
-Why are we doing this? What use cases does it support? What is the expected outcome?
-
 # Guide-level explanation
 
 RubyGems.org tracks the number of times each gem & gem version is downloaded.
@@ -25,18 +23,12 @@ That data is available at a 15 minute granularity for the past week,
 daily for the past 2 years,
 and monthly and yearly for all time.
 
+This data will be available under new API endpoints, which will be designed in a followup.
+
 # Reference-level explanation
 
-This is the technical portion of the RFC. Explain the design in sufficient detail that:
-
-- Its interaction with other features is clear.
-- It is reasonably clear how the feature would be implemented.
-- Corner cases are dissected by example.
-
-The section should return to the examples given in the previous section, and explain more fully how the detailed proposal makes those examples work.
-
 We will set up a second database that instances of the rubygems.org rails app will connect to.
-We will use a timescale cloud instance, with a single table added:
+We will use a [managed timescale cloud](https://www.timescale.com) instance, with a single table added:
 
 ```ruby
 class CreateDownloads < ActiveRecord::Migration[7.0]
@@ -55,19 +47,14 @@ class CreateDownloads < ActiveRecord::Migration[7.0]
 end
 ```
 
-That on top of that table (and hypertable, which is how timescale efficiently stores timeseries data), we will define some continuous aggregates:
+Then on top of that table (and hypertable, which is how timescale efficiently stores timeseries data), we will define some continuous aggregates:
 
 ```ruby
 class CreateDownloadsContinuousAggregates < ActiveRecord::Migration[7.0]
   disable_ddl_transaction!
 
-  def create_continuous_aggregate(name, ...)
-    execute "DROP MATERIALIZED VIEW IF EXISTS #{connection.quote_table_name(name)} CASCADE;"
-    super
-  rescue ActiveRecord::StatementInvalid => e
-    raise unless e.cause.is_a?(PG::DatetimeFieldOverflow)
-    say "WARNING: #{e}"
-    nil
+  def quote_table_name(...)
+    connection.quote_table_name(...)
   end
 
   def continuous_aggregate(
@@ -79,18 +66,18 @@ class CreateDownloadsContinuousAggregates < ActiveRecord::Migration[7.0]
     retention: start_offset
   )
     name = "downloads_" + duration.inspect.parameterize(separator: '_')
-    start_offset ||= 20.years
 
     create_continuous_aggregate(
       name,
       Download.
-        time_bucket(duration.iso8601, select_alias: :occurred_at).
+        time_bucket(duration.iso8601, quote_table_name("#{from}.occurred_at"), select_alias: 'occurred_at').
         group(:rubygem_id, :version_id).
         select(:rubygem_id, :version_id).
-        sum(:downloads, :downloads).
+        sum(quote_table_name("#{from}.downloads"), :downloads).
         reorder(nil).
         from(from).
-        to_sql
+        to_sql,
+      force: true
     )
     add_continuous_aggregate_policy(name, start_offset&.iso8601, end_offset&.iso8601, schedule_window)
     add_hypertable_retention_policy(name, retention.iso8601) if retention
@@ -99,12 +86,13 @@ class CreateDownloadsContinuousAggregates < ActiveRecord::Migration[7.0]
     create_continuous_aggregate(
       all_versions_name,
       Download.
-        time_bucket(duration.iso8601, select_alias: :occurred_at).
+        time_bucket(duration.iso8601, quote_table_name("#{name}.occurred_at"), select_alias: 'occurred_at').
         group(:rubygem_id).
         select(:rubygem_id).
-        sum(:downloads, :downloads).
+        sum(quote_table_name("#{name}.downloads"), :downloads).
         from(name).
-        to_sql
+        to_sql,
+        force: true
     )
     add_continuous_aggregate_policy(all_versions_name, start_offset&.iso8601, end_offset&.iso8601, schedule_window)
     add_hypertable_retention_policy(all_versions_name, retention.iso8601) if retention
@@ -113,10 +101,11 @@ class CreateDownloadsContinuousAggregates < ActiveRecord::Migration[7.0]
     create_continuous_aggregate(
       all_gems_name,
       Download.
-        time_bucket(duration.iso8601, select_alias: :occurred_at).
-        sum(:downloads, :downloads).
+        time_bucket(duration.iso8601, quote_table_name("#{all_versions_name}.occurred_at"), select_alias: 'occurred_at').
+        sum(quote_table_name("#{all_versions_name}.downloads"), :downloads).
         from(all_versions_name).
-        to_sql
+        to_sql,
+        force: true
     )
     add_continuous_aggregate_policy(all_gems_name, start_offset&.iso8601, end_offset&.iso8601, schedule_window)
     add_hypertable_retention_policy(all_gems_name, retention.iso8601) if retention
@@ -125,7 +114,9 @@ class CreateDownloadsContinuousAggregates < ActiveRecord::Migration[7.0]
   end
 
   def change
-    ActiveRecord::Base.logger = Logger.new(STDERR)
+    # https://github.com/timescale/timescaledb/issues/5474
+    Download.create!(version_id: 0, rubygem_id: 0, occurred_at: Time.at(0), downloads: 0)
+
     from = continuous_aggregate(
       duration: 15.minutes,
       start_offset: 1.week,
@@ -165,21 +156,40 @@ end
 Then, in the `FastlyLogProcessorJob`, we will aggregate all downloads in a log by (version full name, 15 minute time bucket),
 and find_or_create a Download record for that version (with its version ID and rubygem ID) with the download count, log ticket ID, and time bucket.
 
+Each continuous aggregate will get its own subclass of `Download`, so we are able to query agains the matrix of timeframes x [single gem version, all versions for a gem, all gems] using a consistent interface.
+
+For example, all of the following will be possible (and queriable scoped to particular timeframes, gems, gem versions, etc.)
+
+```ruby
+irb(main):004:0> Download::P1MAllVersion.all
+2023-04-03 10:11:48.902642 D [920:8000 log_subscriber.rb:130] ActiveRecord::Base --   Download::P1MAllVersion Load (173.3ms)  SELECT "downloads_1_month_all_versions".* FROM "downloads_1_month_all_versions"
+=>
+[#<Download::P1MAllVersion:0x000000011cfd37a8 occurred_at: Sun, 01 Nov 2015 00:00:00.000000000 UTC +00:00, rubygem_id: 11, downloads: 6>,
+ #<Download::P1MAllVersion:0x000000011cfd3668 occurred_at: Tue, 01 Dec 2015 00:00:00.000000000 UTC +00:00, rubygem_id: 11, downloads: 1>]
+irb(main):005:0> Download::P1YAllGem.all
+2023-04-03 10:11:57.916116 D [920:8000 log_subscriber.rb:130] ActiveRecord::Base --   Download::P1YAllGem Load (75.0ms)  SELECT "downloads_1_year_all_gems".* FROM "downloads_1_year_all_gems"
+=> [#<Download::P1YAllGem:0x000000011c6de6c0 occurred_at: Thu, 01 Jan 2015 00:00:00.000000000 UTC +00:00, downloads: 7>]
+irb(main):006:0> Download::P1D.all
+2023-04-03 10:12:01.759285 D [920:8000 log_subscriber.rb:130] ActiveRecord::Base --   Download::P1D Load (43.5ms)  SELECT "downloads_1_day".* FROM "downloads_1_day"
+=>
+[#<Download::P1D:0x000000011cef9b20 occurred_at: Mon, 30 Nov 2015 00:00:00.000000000 UTC +00:00, rubygem_id: 11, version_id: 21, downloads: 2>,
+ #<Download::P1D:0x000000011cef9a80 occurred_at: Wed, 30 Dec 2015 00:00:00.000000000 UTC +00:00, rubygem_id: 11, version_id: 23, downloads: 1>,
+ #<Download::P1D:0x000000011cef99e0 occurred_at: Mon, 30 Nov 2015 00:00:00.000000000 UTC +00:00, rubygem_id: 11, version_id: 22, downloads: 1>,
+ #<Download::P1D:0x000000011cef9940 occurred_at: Sun, 29 Nov 2015 00:00:00.000000000 UTC +00:00, rubygem_id: 11, version_id: 23, downloads: 1>,
+ #<Download::P1D:0x000000011cef98a0 occurred_at: Mon, 30 Nov 2015 00:00:00.000000000 UTC +00:00, rubygem_id: 11, version_id: 23, downloads: 2>]
+```
+
+Note that the raw `Download` class will not be exposed anywhere -- as far as the rails app is concerned, it's a write-only table, and all queries will happen against the continuous aggregates.
+
 # Drawbacks
-
-Why should we _not_ do this? Please consider the impact on existing users, on the documentation, on the integration of this feature with other existing and planned features, on the impact on existing apps, etc.
-
-There are tradeoffs to choosing any path, please attempt to identify them here.
 
 - Adding another datastore complicates contributing to the application
 - Another datastore means we can't natively write joins against the download data
 - Timescale cloud costs money
+- There is no terraform provider for timescale cloud (yet) requiring us to write one or manually provision
+- This is still high cardinality data, and there's no knowing for sure how well timescale will compress it
 
 # Rationale and Alternatives
-
-- Why is this design the best in the space of possible designs?
-- What other designs have been considered and what is the rationale for not choosing them?
-- What is the impact of not doing this?
 
 - Timescale has support for "continuous aggregates" and data retention policies. Combined, this makes it possible for us to seamlessly simultaneously support "downloads per hour for the past month" and "downloads per day for the past year" without manually needing to handle rollups, writing queries that cross the timeframe boundaries
 - If we don't do this, download data will continue to become less useful, as the mass of downloads moves further and further into the past
@@ -192,8 +202,4 @@ There are tradeoffs to choosing any path, please attempt to identify them here.
 - How many historical fastly logs will we re-parse?
 - How do we want to present this data to users?
 - What new API endpoints will we add?
-- Do downloads need an ID?
-
-- What parts of the design do you expect to resolve through the RFC process before this gets merged?
-- What parts of the design do you expect to resolve through the implementation of this feature before it is on by default?
-- What related issues do you consider out of scope for this RFC that could be addressed in the future independently of the solution that comes out of this RFC?
+- Do downloads (and the continuous aggregates defined on them) need an ID?
