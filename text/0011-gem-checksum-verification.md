@@ -1,6 +1,6 @@
-- Feature Name: (fill me in with a unique ident, my\_awesome\_feature)
-- Start Date: (fill me in with today's date, YYYY-MM-DD)
-- RFC PR: (leave this empty)
+- Feature Name: `gem_checksum_verification`
+- Start Date: 2023-08-29
+- RFC PR: https://github.com/rubygems/rubygems/pull/6374
 - Bundler Issue: (leave this empty)
 
 # Summary
