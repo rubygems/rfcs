@@ -174,7 +174,6 @@ Old versions of Bundler should ignore the CHECKSUMS section. We will need to che
 - Verifying .gem files at install time offers nearly complete protection against hacked, altered and corrupted gems. Bundler already ensures that only the bundled gems are available to the app. This feature adds the assurance that only verified gems were installed with the bundle.
 - One alternative to this solution is including (vendoring) the bundled gems in the repository. This effectively has the same result, since the gems that will be installed during the production deploy will be verifiably the same gems that were used during CI and development. The downside of this vendored approach is the increase in the repository size. Checksums allow for a similar level of confidence without the downsides of vendoring gems and can be enabled by default so that more users will benefit.
 
-
 # Unresolved questions
 
 - What are the exact commands, options, warning and error messages that are used to interact with the feature?
