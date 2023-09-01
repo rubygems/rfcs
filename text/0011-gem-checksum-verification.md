@@ -121,6 +121,31 @@ Internal storage of checksums indexes the checksums by a gem's full name (name-v
 
 When two sources have a checksum for the same gem full name, the are compared. If they are the same, they are merged into a single record that associates the checksum with all of the sources for that checksum.
 
+### Example CHECKSUM section
+
+A freshly created Rails 7.0.7.2 app creates the following CHECKSUMS section (snipped for brevity):
+
+```
+CHECKSUMS
+  actioncable (7.0.7.2) sha256-a921830a59ee314939955c9fc3b922d2b1f3ebc16fdf062370b9078aa0dc28c5
+  actionmailbox (7.0.7.2) sha256-33aeae209fc876c072e5ad28c7ffc16ace533d391368ad6390bb6183c2b27a24
+  actionmailer (7.0.7.2) sha256-0e9061159af8c220042b7714a2ba01e2d71d2904f308021ec714793e5f9811a0
+  actionpack (7.0.7.2) sha256-c441ff3898bf5827540bcab929d2f5be6e75b64c101513629a3c88e269615561
+  actiontext (7.0.7.2) sha256-d29eabbfbf0f084a0bddcfc6bd7e6245e209ec3a1def200e95b670e0cdfba033
+  actionview (7.0.7.2) sha256-15ba2612efb484ec80d5b656b4ea16e02d34d3f9980cabc13bd8ac15ccea3f94
+  activejob (7.0.7.2) sha256-6d8ebd81d29ce65bb57830640fa2d3f01e4cab0d71714a54c2b13763021023a4
+  activemodel (7.0.7.2) sha256-45ba827986065ac273b59cb3b6c9ab3da412beca5d465f1acf7a51fb5bc032b3
+  activerecord (7.0.7.2) sha256-425f84edb279c02fe2195eee166b20aabb36f51939087d040fa462859bd6790f
+  activestorage (7.0.7.2) sha256-8f1d79266f148d74e1cc7fcc91f3f04171e0d10c68f8a31ac95d11644114f4f0
+  activesupport (7.0.7.2) sha256-62e01393689c8514a65e2cf8be6f4781d1e6c7d9adc25b1056902d8abd659fee
+  addressable (2.8.5) sha256-63f0fbcde42edf116d6da98a9437f19dd1692152f1efa3fcc4741e443c772117
+  # ... SNIP ...
+  xpath (3.2.0) sha256-6dfda79d91bb3b949b947ecc5919f042ef2f399b904013eb3ef6d20dd3a4082e
+  zeitwerk (2.6.11) sha256-ade72f223a75c91f3b02b2c941a57fb697bc443d615f38c28773185e08698dd7
+```
+
+During the `rails new` command, `bundle install` pulled all the checksums from the compact index on rubygems.org, then computed checksums for each gem as it was installed.
+
 # Drawbacks
 
 ### Excessive failures
@@ -139,6 +164,10 @@ When gems come from private gem servers that do not implement the compact index,
 
 If a user configures CI to use locked gem versions, it would be necessary for Dependabot to write the corresponding checksum line to the Gemfile to prevent every CI build from failing. This could cause many users to disable the feature because it interferes with an existing workflow or causes excessive CI failure notices. This can be addressed by making clear messaging about how to fix this problem.
 
+### Older versions of Bundler
+
+Old versions of Bundler should ignore the CHECKSUMS section. We will need to check older versions to be sure.
+
 # Rationale and Alternatives
 
 - Rubygems.org already stores SHA256 checksums for gems and returns them in the compact index response. All the information is already present for checksum verification on the client side.
@@ -150,3 +179,7 @@ If a user configures CI to use locked gem versions, it would be necessary for De
 
 - What are the exact commands, options, warning and error messages that are used to interact with the feature?
 - What are the unexpected errors that may happen the first time people verify the gems they are downloading? Are there any errors or problems in the existing rubygems.org repository?
+
+### How do we handle confusion about the authority of checksums written to the Gemfile.lock
+
+The source of checksums in the Gemfile.lock becomes a matter of trust once it's written. Did the checksum come from the API or was it calculated from a .gem file on a developers computer. If a checksum error is resolved by one developer in a way that saves an incorrect checksum, how should people know when to approve these changes or not. It may not even be common practice for most teams to look at the Gemfile.lock, and changes can often be hidden in pull request reviews. Without a process for checking that the checksums are trustworthy, it's left to every development team to decide on a process. One solution would be a bundle command that could be run in CI every time the gems are installed that verifies the authenticity of checksums in the Gemfile.lock.
