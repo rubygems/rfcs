@@ -112,7 +112,7 @@ Bundler commands that interact with checksums either fetch checksums from source
 Internal storage of checksums indexes the checksums by a gem's NameTuple (name, version, platform) and the checksum's algorithm.
 The source of each checksum is stored with the checksum so that errors can describe how to fix conflicting checksums.
 
-When two remote sources have a checksum for the same gem, the are compared.
+When two remote sources have a checksum for the same gem, they are compared.
 If they are the same, bundler proceeds as normal
 
 ### Example CHECKSUM section
