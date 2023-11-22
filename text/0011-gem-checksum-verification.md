@@ -15,7 +15,9 @@ The feature should work transparently in much the same way that bundler already 
 
 # Guide-level explanation
 
-Upon first upgrading to this version of Bundler, expect bundler to progressively add checksums to the lockfile without any extra configuration.
+Upon first upgrading to this version of Bundler, lockfile checksums will not enabled.
+The feature will opt-in only at initial release.
+It is important that Bundler maintains compatibility and there are edge cases that are difficult to accommodate without wider adoption.
 
 Common Bundler commands like `bundle install`, `bundle update`, `bundle lock`, `bundle add` will now automatically record and verify checksums.
 Commands that rely on checksums for verification will silently succeed when checksums match and fail with a unique non-zero exit code when checksums do not match.
