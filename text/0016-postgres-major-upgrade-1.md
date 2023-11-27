@@ -30,7 +30,7 @@ For this upgrade's groundwork, a mix of Kubernetes, Terraform, and manually exec
    - Manual configurations are applied to `pgbouncer` using `pgbouncer.ini` and `userlist.txt`.
 
 2. **PostgreSQL 12 Initialization using Terraform**:
-   - Using Terraform, a new PostgreSQL 12 RDS instance is brought up using `db.m7g.xlarge` instance size.
+   - Using Terraform, a new PostgreSQL 12 RDS instance is brought up using `db.m5.xlarge` instance size.
 
 3. **Configuring PostgreSQL 11 with Terraform**:
    - Terraform adjusts the existing PostgreSQL 11 RDS instance to fit the upcoming steps, which include a required restart. This also introduces "pg_stat_statements" for improved DataDog monitoring.
